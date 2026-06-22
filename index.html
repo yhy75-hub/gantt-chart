@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>特別制作管理 — ガントチャート</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;}
@@ -191,6 +193,18 @@ input,select{font-family:inherit;font-size:13px;}
 .tooltip.hidden{display:none;}
 .tt-title{font-weight:500;margin-bottom:4px;}
 .tt-row{color:#666;margin-top:2px;font-size:11px;}
+/* 接続ステータス */
+.conn-badge{display:flex;align-items:center;gap:5px;font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid rgba(0,0,0,0.1);background:#f8f8f4;color:#888;white-space:nowrap;}
+.conn-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.conn-dot.online{background:#639922;}
+.conn-dot.offline{background:#E24B4A;}
+.conn-dot.connecting{background:#EF9F27;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4;}}
+/* ローディング */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,0.85);display:flex;align-items:center;justify-content:center;z-index:300;font-size:13px;color:#888;gap:10px;flex-direction:column;}
+.loading-overlay.hidden{display:none;}
+.spinner{width:24px;height:24px;border:2px solid rgba(0,0,0,0.1);border-top-color:#378ADD;border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -210,6 +224,10 @@ input,select{font-family:inherit;font-size:13px;}
       <button id="todayBtn">今日</button>
       <button id="calBtn"><i class="ti ti-calendar-event" aria-hidden="true"></i> 休日設定</button>
       <button id="addBtn"><i class="ti ti-plus" aria-hidden="true"></i> 案件追加</button>
+      <div class="conn-badge" id="connBadge">
+        <div class="conn-dot connecting" id="connDot"></div>
+        <span id="connLabel">接続中...</span>
+      </div>
     </div>
   </div>
 
@@ -324,6 +342,12 @@ input,select{font-family:inherit;font-size:13px;}
   </div>
 </div>
 
+<!-- ローディング -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <span>データを読み込んでいます...</span>
+</div>
+
 <!-- tooltip -->
 <div class="tooltip hidden" id="tip">
   <div class="tt-title" id="ttName"></div>
@@ -335,35 +359,60 @@ input,select{font-family:inherit;font-size:13px;}
 </div>
 
 <script>
-const DAY_W=28, STORE_KEY='gantt_tokubetsu_v2', HOL_KEY='gantt_holidays_v1';
+/* ─── Firebase 初期化 ─── */
+const firebaseConfig={
+  apiKey:"AIzaSyB312nvOuATNd7i0hHOEnPcBddkR2grA-s",
+  authDomain:"gantt-chart-92d03.firebaseapp.com",
+  databaseURL:"https://gantt-chart-92d03-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"gantt-chart-92d03",
+  storageBucket:"gantt-chart-92d03.firebasestorage.app",
+  messagingSenderId:"268008972196",
+  appId:"1:268008972196:web:2f5b6d4bbf3834e61d6b31"
+};
+firebase.initializeApp(firebaseConfig);
+const db=firebase.database();
+const tasksRef=db.ref('tasks');
+const holidaysRef=db.ref('holidays');
+
+const DAY_W=28;
 let tasks=[], holidays=[], viewStart=new Date(), editId=null, syncing=false, pendingDelId=null;
 let editSubtasks=[], editingSubIdx=-1;
+let loadedCount=0;
+
+/* 展開状態はブラウザごとにローカル保持 */
+let expandedIds=new Set(JSON.parse(localStorage.getItem('gantt_expanded')||'[]'));
+function saveExpanded(){localStorage.setItem('gantt_expanded',JSON.stringify([...expandedIds]));}
 
 /* ─── INIT ─── */
 function init(){
-  const saved=localStorage.getItem(STORE_KEY);
-  if(saved){try{tasks=JSON.parse(saved);}catch(e){tasks=[];}}
-  else{
-    const t=new Date(),fmt=d=>d.toISOString().slice(0,10);
-    const add=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
-    tasks=[
-      {id:1,name:'特注フレーム製作',num:'SP-001',owner:'田中',start:fmt(add(t,-5)),end:fmt(add(t,20)),status:'進行中',prog:35,note:'材料調達済み',expanded:false,subtasks:[
-        {id:'s11',name:'材料調達',owner:'田中',start:fmt(add(t,-5)),end:fmt(add(t,0)),status:'完了',prog:100},
-        {id:'s12',name:'機械加工',owner:'田中',start:fmt(add(t,1)),end:fmt(add(t,12)),status:'進行中',prog:40},
-        {id:'s13',name:'仕上げ・検査',owner:'田中',start:fmt(add(t,13)),end:fmt(add(t,20)),status:'未着手',prog:0},
-      ]},
-      {id:2,name:'カバー板金加工',num:'SP-002',owner:'鈴木',start:fmt(add(t,3)),end:fmt(add(t,30)),status:'未着手',prog:0,note:'',expanded:false,subtasks:[]},
-      {id:3,name:'特殊ネジ調達・組付け',num:'SP-003',owner:'佐藤',start:fmt(add(t,-15)),end:fmt(add(t,5)),status:'遅延',prog:60,note:'仕入れ先要確認',expanded:false,subtasks:[]},
-      {id:4,name:'ケースアセンブリ',num:'SP-004',owner:'田中',start:fmt(add(t,10)),end:fmt(add(t,50)),status:'未着手',prog:0,note:'',expanded:false,subtasks:[]},
-      {id:5,name:'試作品検査・検収',num:'SP-005',owner:'山本',start:fmt(add(t,-30)),end:fmt(add(t,-3)),status:'完了',prog:100,note:'合格',expanded:false,subtasks:[]},
-    ];
-    save();
-  }
-  const savedHol=localStorage.getItem(HOL_KEY);
-  if(savedHol){try{holidays=JSON.parse(savedHol);}catch(e){holidays=[];}}
-
   viewStart=new Date(); viewStart.setDate(1);
-  render(); setTimeout(scrollToToday,80);
+
+  /* 接続状態モニタ */
+  db.ref('.info/connected').on('value',snap=>{
+    const ok=snap.val();
+    document.getElementById('connDot').className='conn-dot '+(ok?'online':'offline');
+    document.getElementById('connLabel').textContent=ok?'同期中':'オフライン';
+  });
+
+  /* tasks リアルタイム同期 */
+  tasksRef.on('value',snap=>{
+    const data=snap.val();
+    if(data===null){
+      loadSampleData();
+    }else{
+      tasks=Object.values(data).sort((a,b)=>(a._order||0)-(b._order||0));
+      tasks.forEach(t=>{t.expanded=expandedIds.has(String(t.id));});
+    }
+    onLoaded();
+  });
+
+  /* holidays リアルタイム同期 */
+  holidaysRef.on('value',snap=>{
+    const data=snap.val();
+    holidays=data?Object.entries(data).map(([date,h])=>({date,name:h.name||''})):[];
+    onLoaded();
+    if(document.getElementById('calModal')&&!document.getElementById('calModal').classList.contains('hidden'))renderHolidayList();
+  });
 
   /* イベント */
   document.getElementById('addBtn').onclick=()=>openModal();
@@ -402,8 +451,49 @@ function init(){
   });
 }
 
-function save(){localStorage.setItem(STORE_KEY,JSON.stringify(tasks));}
-function saveHolidays(){localStorage.setItem(HOL_KEY,JSON.stringify(holidays));}
+/* 両方のリスナーが初回発火したらローディング解除 */
+function onLoaded(){
+  loadedCount++;
+  render();
+  if(loadedCount>=2){
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    setTimeout(scrollToToday,80);
+  }
+}
+
+/* サンプルデータ（初回のみ） */
+function loadSampleData(){
+  const t=new Date(),fmt=d=>d.toISOString().slice(0,10);
+  const add=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
+  const sample=[
+    {id:Date.now()+1,name:'特注フレーム製作',num:'SP-001',owner:'田中',start:fmt(add(t,-5)),end:fmt(add(t,20)),status:'進行中',prog:35,note:'材料調達済み',subtasks:[
+      {id:'s11',name:'材料調達',owner:'田中',start:fmt(add(t,-5)),end:fmt(add(t,0)),status:'完了',prog:100},
+      {id:'s12',name:'機械加工',owner:'田中',start:fmt(add(t,1)),end:fmt(add(t,12)),status:'進行中',prog:40},
+      {id:'s13',name:'仕上げ・検査',owner:'田中',start:fmt(add(t,13)),end:fmt(add(t,20)),status:'未着手',prog:0},
+    ]},
+    {id:Date.now()+2,name:'カバー板金加工',num:'SP-002',owner:'鈴木',start:fmt(add(t,3)),end:fmt(add(t,30)),status:'未着手',prog:0,note:'',subtasks:[]},
+    {id:Date.now()+3,name:'特殊ネジ調達・組付け',num:'SP-003',owner:'佐藤',start:fmt(add(t,-15)),end:fmt(add(t,5)),status:'遅延',prog:60,note:'仕入れ先要確認',subtasks:[]},
+  ];
+  const obj={};
+  sample.forEach((t,i)=>{obj[String(t.id)]={...t,_order:i};});
+  tasksRef.set(obj);
+}
+
+/* ─── Firebase 書き込み ─── */
+function saveTasks(){
+  const obj={};
+  tasks.forEach((t,i)=>{
+    const d={...t,_order:i};
+    delete d.expanded;
+    obj[String(t.id)]=d;
+  });
+  tasksRef.set(obj);
+}
+function saveHolidays(){
+  const obj={};
+  holidays.forEach(h=>{obj[h.date]={name:h.name||''};});
+  holidaysRef.set(obj);
+}
 
 /* ─── RENDER ─── */
 function render(){
@@ -470,8 +560,11 @@ function renderList(){
 
 function toggleExpand(e,id){
   e.stopPropagation();
-  const t=tasks.find(x=>x.id===id);
-  if(t){t.expanded=!t.expanded;save();render();}
+  const sid=String(id);
+  if(expandedIds.has(sid))expandedIds.delete(sid);else expandedIds.add(sid);
+  saveExpanded();
+  tasks.forEach(t=>{t.expanded=expandedIds.has(String(t.id));});
+  render();
 }
 
 function requestDel(e,id){
@@ -481,7 +574,7 @@ function requestDel(e,id){
 }
 function confirmDel(e,id){
   e.stopPropagation();
-  tasks=tasks.filter(t=>t.id!==id);pendingDelId=null;save();render();
+  tasks=tasks.filter(t=>t.id!==id);pendingDelId=null;saveTasks();
 }
 
 /* ─── TIMELINE ─── */
@@ -703,7 +796,7 @@ function saveTask(){
   const d={name,num:document.getElementById('fNum').value.trim(),owner:document.getElementById('fOwner').value.trim(),start,end,status:document.getElementById('fStatus').value,prog:parseInt(document.getElementById('fProg').value),note:document.getElementById('fNote').value.trim(),subtasks:editSubtasks};
   if(editId){const i=tasks.findIndex(t=>t.id===editId);if(i>=0)tasks[i]={...tasks[i],...d,expanded:tasks[i].expanded};}
   else{d.id=Date.now();d.expanded=false;tasks.push(d);}
-  save();closeModal();render();
+  saveTasks();closeModal();
 }
 
 /* ─── 休日モーダル ─── */
@@ -739,12 +832,10 @@ function addHoliday(){
   saveHolidays();
   document.getElementById('hdDate').value='';
   document.getElementById('hdName').value='';
-  renderHolidayList();
-  render();
 }
 function removeHoliday(date){
   holidays=holidays.filter(h=>h.date!==date);
-  saveHolidays();renderHolidayList();render();
+  saveHolidays();
 }
 
 /* ─── TOOLTIP ─── */
