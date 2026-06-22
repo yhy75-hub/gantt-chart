@@ -146,6 +146,17 @@ input,select{font-family:inherit;font-size:13px;}
 .st-item-info{font-size:11px;color:#888;}
 .st-item-del{background:none;border:none;cursor:pointer;color:#ccc;font-size:14px;padding:2px;border-radius:4px;display:flex;}
 .st-item-del:hover{color:#E24B4A;background:#FCEBEB;}
+.st-item-edit-btn{background:none;border:none;cursor:pointer;color:#bbb;font-size:14px;padding:2px;border-radius:4px;display:flex;}
+.st-item-edit-btn:hover{color:#378ADD;background:#E6F1FB;}
+.st-edit-form{background:#f0f4fa;border-radius:6px;padding:10px;border:0.5px solid rgba(55,138,221,0.25);display:flex;flex-direction:column;gap:8px;}
+.st-edit-row{display:grid;grid-template-columns:1fr 88px 88px;gap:8px;}
+.st-edit-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.st-edit-form input,.st-edit-form select{height:30px;border:0.5px solid rgba(0,0,0,0.22);border-radius:6px;padding:0 8px;font-size:12px;background:#fff;color:#1a1a1a;width:100%;outline:none;}
+.st-edit-form input:focus,.st-edit-form select:focus{border-color:#378ADD;box-shadow:0 0 0 2px rgba(55,138,221,0.14);}
+.st-edit-actions{display:flex;justify-content:flex-end;gap:6px;}
+.st-edit-actions button{font-size:11px;padding:4px 10px;}
+.st-save-btn{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+.st-save-btn:hover{background:#333;}
 .st-add-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;}
 .st-add-fields{display:grid;grid-template-columns:1fr 90px 90px;gap:8px;}
 
@@ -326,7 +337,7 @@ input,select{font-family:inherit;font-size:13px;}
 <script>
 const DAY_W=28, STORE_KEY='gantt_tokubetsu_v2', HOL_KEY='gantt_holidays_v1';
 let tasks=[], holidays=[], viewStart=new Date(), editId=null, syncing=false, pendingDelId=null;
-let editSubtasks=[];
+let editSubtasks=[], editingSubIdx=-1;
 
 /* ─── INIT ─── */
 function init(){
@@ -623,13 +634,49 @@ function clearFields(){
 function renderSubtaskList(){
   const list=document.getElementById('subtaskList');
   if(!editSubtasks.length){list.innerHTML='<div style="font-size:11px;color:#bbb;padding:4px 0">サブタスクなし</div>';return;}
-  list.innerHTML=editSubtasks.map((st,i)=>`
-    <div class="st-item">
+  list.innerHTML=editSubtasks.map((st,i)=>{
+    if(i===editingSubIdx){
+      return `<div class="st-edit-form">
+        <div class="st-edit-row">
+          <input type="text" id="se-name" value="${esc(st.name)}" placeholder="サブタスク名">
+          <input type="date" id="se-start" value="${st.start}">
+          <input type="date" id="se-end" value="${st.end}">
+        </div>
+        <div class="st-edit-row2">
+          <select id="se-status">
+            ${['未着手','進行中','完了','遅延','保留'].map(s=>`<option value="${s}"${st.status===s?' selected':''}>${s}</option>`).join('')}
+          </select>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="range" id="se-prog" min="0" max="100" step="5" value="${st.prog}" oninput="document.getElementById('se-prog-val').textContent=this.value+'%'" style="flex:1">
+            <span id="se-prog-val" style="font-size:11px;font-weight:500;min-width:32px;text-align:right">${st.prog}%</span>
+          </div>
+        </div>
+        <div class="st-edit-actions">
+          <button onclick="cancelEditSub()">キャンセル</button>
+          <button class="st-save-btn" onclick="saveEditSub(${i})"><i class="ti ti-check"></i> 保存</button>
+        </div>
+      </div>`;
+    }
+    return `<div class="st-item">
       <div class="st-item-name">${esc(st.name)}</div>
       <div class="st-item-info">${st.start} 〜 ${st.end}</div>
       <span class="badge badge-${st.status}" style="font-size:9px">${st.status}</span>
-      <button class="st-item-del" onclick="removeSubtask(${i})"><i class="ti ti-x"></i></button>
-    </div>`).join('');
+      <button class="st-item-edit-btn" onclick="startEditSub(${i})" title="編集"><i class="ti ti-pencil"></i></button>
+      <button class="st-item-del" onclick="removeSubtask(${i})" title="削除"><i class="ti ti-x"></i></button>
+    </div>`;
+  }).join('');
+}
+function startEditSub(i){editingSubIdx=i;renderSubtaskList();}
+function cancelEditSub(){editingSubIdx=-1;renderSubtaskList();}
+function saveEditSub(i){
+  const name=document.getElementById('se-name').value.trim();
+  const start=document.getElementById('se-start').value;
+  const end=document.getElementById('se-end').value;
+  if(!name){document.getElementById('se-name').focus();return;}
+  if(!start||!end){alert('開始日と終了日を入力してください');return;}
+  if(start>end){alert('終了日は開始日以降にしてください');return;}
+  editSubtasks[i]={...editSubtasks[i],name,start,end,status:document.getElementById('se-status').value,prog:parseInt(document.getElementById('se-prog').value)};
+  editingSubIdx=-1;renderSubtaskList();
 }
 function addSubtaskRow(){
   const name=document.getElementById('stName').value.trim();
@@ -645,7 +692,7 @@ function addSubtaskRow(){
   document.getElementById('stName').focus();
 }
 function removeSubtask(i){editSubtasks.splice(i,1);renderSubtaskList();}
-function closeModal(){document.getElementById('modal').classList.add('hidden');editId=null;editSubtasks=[];}
+function closeModal(){document.getElementById('modal').classList.add('hidden');editId=null;editSubtasks=[];editingSubIdx=-1;}
 function saveTask(){
   const name=document.getElementById('fName').value.trim();
   const start=document.getElementById('fStart').value,end=document.getElementById('fEnd').value;
