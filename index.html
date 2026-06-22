@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html,body{height:100%;overflow:hidden;}
@@ -18,16 +19,33 @@ input,select{font-family:inherit;font-size:13px;}
 .app{display:flex;flex-direction:column;height:100vh;overflow:hidden;}
 
 /* header */
-.hdr{background:#fff;border-bottom:0.5px solid rgba(0,0,0,0.13);padding:10px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:10;}
-.hdr-title{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px;}
+.hdr{background:#fff;border-bottom:0.5px solid rgba(0,0,0,0.13);padding:8px 16px;display:flex;align-items:center;gap:8px;flex-shrink:0;z-index:10;flex-wrap:wrap;}
+.hdr-title{font-size:15px;font-weight:500;display:flex;align-items:center;gap:8px;white-space:nowrap;}
 .hdr-title i{font-size:20px;color:#666;}
-.hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
 .nav-month{display:flex;align-items:center;gap:4px;font-size:13px;font-weight:500;background:#eeede8;border-radius:8px;padding:4px 8px;border:0.5px solid rgba(0,0,0,0.1);}
 .nav-btn{background:none;border:none;cursor:pointer;color:#666;padding:2px 4px;border-radius:4px;line-height:1;font-size:16px;display:flex;}
 .nav-btn:hover{background:#fff;}
 #addBtn{background:#1a1a1a;color:#fff;border-color:#1a1a1a;display:flex;align-items:center;gap:4px;}
 #addBtn:hover{background:#333;}
-#calBtn{display:flex;align-items:center;gap:4px;}
+#calBtn,#exportBtn{display:flex;align-items:center;gap:4px;}
+.import-btn{display:flex;align-items:center;gap:4px;background:#eef4ff;color:#1a56db;border-color:#bbd0ff;}
+.import-btn:hover{background:#ddeeff;}
+.export-btn{display:flex;align-items:center;gap:4px;background:#f0fdf4;color:#166534;border-color:#bbf7d0;}
+.export-btn:hover{background:#dcfce7;}
+
+/* tab bar */
+.tab-bar{background:#fff;border-bottom:0.5px solid rgba(0,0,0,0.1);padding:0 16px;display:flex;align-items:center;gap:0;flex-shrink:0;}
+.tab-btn{background:none;border:none;border-radius:0;padding:8px 16px;font-size:13px;color:#888;border-bottom:2px solid transparent;margin-bottom:-0.5px;white-space:nowrap;}
+.tab-btn.active{color:#1a1a1a;border-bottom-color:#378ADD;font-weight:500;}
+.tab-btn:hover{background:#f8f8f4;color:#1a1a1a;}
+.tab-bar-right{margin-left:auto;display:flex;align-items:center;gap:8px;padding:4px 0;}
+.filter-wrap{display:flex;align-items:center;gap:6px;background:#eeede8;border-radius:8px;padding:3px 10px;border:0.5px solid rgba(0,0,0,0.1);}
+.filter-wrap i{color:#999;font-size:15px;}
+.filter-input{border:none;background:transparent;outline:none;font-size:12px;width:160px;color:#1a1a1a;}
+.filter-input::placeholder{color:#bbb;}
+.filter-clear{background:none;border:none;color:#bbb;cursor:pointer;padding:0;font-size:14px;line-height:1;display:flex;border-radius:3px;}
+.filter-clear:hover{color:#666;background:none;}
 
 /* summary */
 .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:8px 16px;flex-shrink:0;}
@@ -40,27 +58,32 @@ input,select{font-family:inherit;font-size:13px;}
 
 /* gantt layout */
 .gantt-wrap{flex:1;overflow:hidden;display:flex;background:#fff;border-top:0.5px solid rgba(0,0,0,0.1);}
-.gantt-left{width:380px;flex-shrink:0;overflow-y:auto;overflow-x:hidden;border-right:0.5px solid rgba(0,0,0,0.1);background:#fff;z-index:2;}
+.gantt-left{width:420px;flex-shrink:0;overflow-y:auto;overflow-x:hidden;border-right:0.5px solid rgba(0,0,0,0.1);background:#fff;z-index:2;}
 .gantt-right{flex:1;overflow:auto;position:relative;}
 
 /* table header */
 .t-head{position:sticky;top:0;background:#eeede8;z-index:3;border-bottom:0.5px solid rgba(0,0,0,0.12);}
-.t-head-row{display:grid;grid-template-columns:28px 1fr 68px 68px 56px 52px;align-items:center;height:52px;}
+.t-head-row{display:grid;grid-template-columns:28px 1fr 72px 68px 56px 52px;align-items:center;height:52px;}
 .t-cell{padding:5px 6px;font-size:11px;color:#666;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
 /* task row */
-.t-row{display:grid;grid-template-columns:28px 1fr 68px 68px 56px 52px;align-items:center;height:40px;border-bottom:0.5px solid rgba(0,0,0,0.08);cursor:pointer;transition:background 0.1s;}
+.t-row{display:grid;grid-template-columns:28px 1fr 72px 68px 56px 52px;align-items:center;height:40px;border-bottom:0.5px solid rgba(0,0,0,0.08);cursor:pointer;transition:background 0.1s;}
 .t-row:hover{background:#f8f8f4;}
 .t-row .t-cell{font-size:12px;color:#1a1a1a;}
 .task-name{font-weight:500;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.task-num{font-size:10px;color:#888;margin-top:1px;}
+.task-num{font-size:10px;color:#888;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.task-koban{font-size:10px;color:#5B89C8;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
 /* subtask row */
-.st-row{display:grid;grid-template-columns:28px 1fr 68px 68px 56px 52px;align-items:center;height:34px;border-bottom:0.5px solid rgba(0,0,0,0.06);cursor:pointer;background:#fafafa;transition:background 0.1s;}
+.st-row{display:grid;grid-template-columns:28px 1fr 72px 68px 56px 52px;align-items:center;height:34px;border-bottom:0.5px solid rgba(0,0,0,0.06);cursor:pointer;background:#fafafa;transition:background 0.1s;}
 .st-row:hover{background:#f2f2ee;}
 .st-row .t-cell{font-size:11px;color:#444;}
 .st-indent{padding-left:12px;display:flex;align-items:center;gap:4px;}
 .st-name{font-size:11px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* 機械加工 highlight */
+.st-row.machining-row{background:#f0f8f4;}
+.st-row.machining-row:hover{background:#e4f2ea;}
 
 /* expand toggle */
 .expand-btn{background:none;border:none;cursor:pointer;color:#999;padding:2px;border-radius:3px;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center;transition:transform 0.15s;}
@@ -96,7 +119,6 @@ input,select{font-family:inherit;font-size:13px;}
 .month-label{padding:0 8px;font-size:11px;font-weight:500;color:#555;display:flex;align-items:center;border-right:0.5px solid rgba(0,0,0,0.07);white-space:nowrap;flex-shrink:0;}
 .day-row{display:flex;height:26px;}
 .day-cell{font-size:9px;display:flex;align-items:center;justify-content:center;border-right:0.5px solid rgba(0,0,0,0.05);flex-shrink:0;color:#999;}
-/* 曜日カラー */
 .day-cell.sat{background:rgba(173,216,240,0.45);color:#1a6496;}
 .day-cell.sun{background:rgba(255,192,203,0.5);color:#a01a3a;}
 .day-cell.holiday{background:rgba(255,192,203,0.5);color:#a01a3a;}
@@ -106,7 +128,6 @@ input,select{font-family:inherit;font-size:13px;}
 .today-line{position:absolute;top:0;bottom:0;width:1.5px;background:rgba(55,138,221,0.4);z-index:1;pointer-events:none;}
 .grid-line{position:absolute;top:0;bottom:0;width:0.5px;background:rgba(0,0,0,0.05);pointer-events:none;}
 .row-divider{position:absolute;left:0;right:0;border-bottom:0.5px solid rgba(0,0,0,0.06);pointer-events:none;}
-/* 列背景（土日・祝日） */
 .col-bg{position:absolute;top:0;bottom:0;pointer-events:none;z-index:0;}
 .col-sat{background:rgba(173,216,240,0.2);}
 .col-sun{background:rgba(255,192,203,0.25);}
@@ -121,11 +142,12 @@ input,select{font-family:inherit;font-size:13px;}
 .bar-完了{background:#639922;color:#fff;}
 .bar-遅延{background:#E24B4A;color:#fff;}
 .bar-保留{background:#EF9F27;color:#412402;}
+.bar-機械加工{background:#2DAA7A;color:#fff;}
 
 /* ─── 案件モーダル ─── */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.36);display:flex;align-items:center;justify-content:center;z-index:100;}
 .modal-bg.hidden{display:none;}
-.modal-box{background:#fff;border-radius:12px;border:0.5px solid rgba(0,0,0,0.13);width:480px;max-width:96vw;padding:20px;max-height:90vh;overflow-y:auto;}
+.modal-box{background:#fff;border-radius:12px;border:0.5px solid rgba(0,0,0,0.13);width:520px;max-width:96vw;padding:20px;max-height:90vh;overflow-y:auto;}
 .modal-title{font-size:15px;font-weight:500;margin-bottom:16px;display:flex;align-items:center;gap:8px;}
 .modal-sub{font-size:11px;color:#888;font-weight:400;margin-left:4px;}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
@@ -144,6 +166,7 @@ input,select{font-family:inherit;font-size:13px;}
 .modal-section-title{font-size:12px;font-weight:500;color:#666;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
 .subtask-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
 .st-item{display:flex;align-items:center;gap:8px;background:#f8f8f4;border-radius:6px;padding:6px 10px;border:0.5px solid rgba(0,0,0,0.08);}
+.st-item.machining-item{background:#f0fdf8;border-color:rgba(45,170,122,0.2);}
 .st-item-name{flex:1;font-size:12px;font-weight:500;}
 .st-item-info{font-size:11px;color:#888;}
 .st-item-del{background:none;border:none;cursor:pointer;color:#ccc;font-size:14px;padding:2px;border-radius:4px;display:flex;}
@@ -188,11 +211,23 @@ input,select{font-family:inherit;font-size:13px;}
 .save-cal-btn{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
 .save-cal-btn:hover{background:#333;}
 
+/* ─── インポート確認モーダル ─── */
+#importModal .modal-box{width:560px;max-height:80vh;}
+.import-preview{max-height:320px;overflow-y:auto;margin:12px 0;border:0.5px solid rgba(0,0,0,0.1);border-radius:8px;}
+.import-preview table{width:100%;border-collapse:collapse;font-size:11px;}
+.import-preview th{background:#eeede8;padding:5px 8px;text-align:left;border-bottom:0.5px solid rgba(0,0,0,0.1);position:sticky;top:0;font-weight:500;color:#555;}
+.import-preview td{padding:4px 8px;border-bottom:0.5px solid rgba(0,0,0,0.06);color:#333;}
+.import-preview tr:last-child td{border-bottom:none;}
+.import-count{font-size:12px;color:#555;margin-bottom:8px;}
+.import-ok-btn{background:#1a1a1a;color:#fff;border-color:#1a1a1a;}
+.import-ok-btn:hover{background:#333;}
+
 /* tooltip */
-.tooltip{position:fixed;background:#fff;border:0.5px solid rgba(0,0,0,0.16);border-radius:8px;padding:8px 12px;font-size:12px;pointer-events:none;z-index:200;max-width:250px;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
+.tooltip{position:fixed;background:#fff;border:0.5px solid rgba(0,0,0,0.16);border-radius:8px;padding:8px 12px;font-size:12px;pointer-events:none;z-index:200;max-width:280px;box-shadow:0 2px 8px rgba(0,0,0,0.08);}
 .tooltip.hidden{display:none;}
 .tt-title{font-weight:500;margin-bottom:4px;}
 .tt-row{color:#666;margin-top:2px;font-size:11px;}
+
 /* 接続ステータス */
 .conn-badge{display:flex;align-items:center;gap:5px;font-size:11px;padding:3px 8px;border-radius:6px;border:0.5px solid rgba(0,0,0,0.1);background:#f8f8f4;color:#888;white-space:nowrap;}
 .conn-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
@@ -200,11 +235,16 @@ input,select{font-family:inherit;font-size:13px;}
 .conn-dot.offline{background:#E24B4A;}
 .conn-dot.connecting{background:#EF9F27;animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4;}}
+
 /* ローディング */
 .loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,0.85);display:flex;align-items:center;justify-content:center;z-index:300;font-size:13px;color:#888;gap:10px;flex-direction:column;}
 .loading-overlay.hidden{display:none;}
 .spinner{width:24px;height:24px;border:2px solid rgba(0,0,0,0.1);border-top-color:#378ADD;border-radius:50%;animation:spin 0.7s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg);}}
+
+/* 機械加工専用タブ info banner */
+.machining-info{background:#f0fdf8;border-bottom:0.5px solid rgba(45,170,122,0.2);padding:6px 16px;font-size:12px;color:#166534;display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.machining-info.hidden{display:none;}
 </style>
 </head>
 <body>
@@ -222,13 +262,38 @@ input,select{font-family:inherit;font-size:13px;}
         <button class="nav-btn" id="nextM" title="次の月"><i class="ti ti-chevron-right"></i></button>
       </div>
       <button id="todayBtn">今日</button>
-      <button id="calBtn"><i class="ti ti-calendar-event" aria-hidden="true"></i> 休日設定</button>
+      <button id="calBtn" class="cal-btn"><i class="ti ti-calendar-event" aria-hidden="true"></i> 休日設定</button>
+      <button id="importBtn" class="import-btn"><i class="ti ti-file-import" aria-hidden="true"></i> Excel取込</button>
+      <button id="exportBtn" class="export-btn"><i class="ti ti-file-export" aria-hidden="true"></i> Excel出力</button>
       <button id="addBtn"><i class="ti ti-plus" aria-hidden="true"></i> 案件追加</button>
       <div class="conn-badge" id="connBadge">
         <div class="conn-dot connecting" id="connDot"></div>
         <span id="connLabel">接続中...</span>
       </div>
     </div>
+  </div>
+
+  <!-- タブ＋フィルター -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabMain" onclick="switchTab('main')">
+      <i class="ti ti-layout-kanban" style="font-size:13px;margin-right:4px;"></i>メイン
+    </button>
+    <button class="tab-btn" id="tabMachining" onclick="switchTab('machining')">
+      <i class="ti ti-tool" style="font-size:13px;margin-right:4px;"></i>機械加工専用
+    </button>
+    <div class="tab-bar-right">
+      <div class="filter-wrap">
+        <i class="ti ti-search"></i>
+        <input class="filter-input" id="filterInput" type="text" placeholder="案件名・品番・工番で絞り込み" oninput="onFilterInput(this.value)">
+        <button class="filter-clear" id="filterClear" onclick="clearFilter()" style="display:none"><i class="ti ti-x"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 機械加工バナー -->
+  <div class="machining-info hidden" id="machiningInfo">
+    <i class="ti ti-info-circle"></i>
+    サブタスクに「機械加工」を含む案件のみ表示しています。メインタブから案件を更新すると自動反映されます。
   </div>
 
   <div class="summary">
@@ -244,8 +309,8 @@ input,select{font-family:inherit;font-size:13px;}
         <div class="t-head-row">
           <div class="t-cell"></div>
           <div class="t-cell">案件名 / 品番</div>
-          <div class="t-cell">担当者</div>
           <div class="t-cell">ステータス</div>
+          <div class="t-cell">担当者</div>
           <div class="t-cell">進捗</div>
           <div class="t-cell"></div>
         </div>
@@ -269,6 +334,7 @@ input,select{font-family:inherit;font-size:13px;}
     </div>
     <div class="form-grid">
       <div class="form-field full"><div class="form-label">案件名 *</div><input type="text" id="fName" placeholder="例：特注フレーム製作"></div>
+      <div class="form-field"><div class="form-label">工番</div><input type="text" id="fKoban" placeholder="例：24R085"></div>
       <div class="form-field"><div class="form-label">品番</div><input type="text" id="fNum" placeholder="例：SP-001"></div>
       <div class="form-field"><div class="form-label">担当者</div><input type="text" id="fOwner" placeholder="例：田中"></div>
       <div class="form-field"><div class="form-label">開始日 *</div><input type="date" id="fStart"></div>
@@ -282,7 +348,7 @@ input,select{font-family:inherit;font-size:13px;}
           <option value="保留">保留</option>
         </select>
       </div>
-      <div class="form-field full"><div class="form-label">進捗率</div>
+      <div class="form-field"><div class="form-label">進捗率</div>
         <div class="range-wrap">
           <input type="range" id="fProg" min="0" max="100" step="5" value="0">
           <span class="range-val" id="fProgVal">0%</span>
@@ -291,11 +357,11 @@ input,select{font-family:inherit;font-size:13px;}
       <div class="form-field full"><div class="form-label">メモ</div><input type="text" id="fNote" placeholder="備考など"></div>
     </div>
     <div class="modal-section" id="subtaskSection">
-      <div class="modal-section-title"><i class="ti ti-subtask" aria-hidden="true"></i>サブタスク</div>
+      <div class="modal-section-title"><i class="ti ti-subtask" aria-hidden="true"></i>サブタスク（工程）</div>
       <div class="subtask-list" id="subtaskList"></div>
       <div class="st-add-row">
         <div class="st-add-fields">
-          <input type="text" id="stName" placeholder="サブタスク名">
+          <input type="text" id="stName" placeholder="工程名（例：機械加工）">
           <input type="date" id="stStart">
           <input type="date" id="stEnd">
         </div>
@@ -317,7 +383,6 @@ input,select{font-family:inherit;font-size:13px;}
       <button class="cal-tab active" data-tab="holidays">会社休日の登録</button>
       <button class="cal-tab" data-tab="legend">カラー凡例</button>
     </div>
-
     <div class="cal-panel active" id="tab-holidays">
       <div class="holiday-list" id="holidayList"></div>
       <div class="hd-add-row">
@@ -327,7 +392,6 @@ input,select{font-family:inherit;font-size:13px;}
       </div>
       <p style="font-size:11px;color:#aaa;margin-top:8px;">追加した休日は日曜日と同じ薄いピンクで表示されます。</p>
     </div>
-
     <div class="cal-panel" id="tab-legend">
       <div style="padding:4px 0">
         <div class="legend-row"><div class="legend-swatch swatch-sat"></div>土曜日 — 淡い水色</div>
@@ -335,12 +399,28 @@ input,select{font-family:inherit;font-size:13px;}
         <div class="legend-row"><div class="legend-swatch swatch-sun"></div>会社休日（登録済み） — 薄いピンク（日曜日と同色）</div>
       </div>
     </div>
-
     <div class="modal-footer">
       <button id="closeCal">閉じる</button>
     </div>
   </div>
 </div>
+
+<!-- Excelインポート確認モーダル -->
+<div class="modal-bg hidden" id="importModal">
+  <div class="modal-box">
+    <div class="modal-title"><i class="ti ti-file-import" aria-hidden="true"></i>Excel取込確認</div>
+    <div class="import-count" id="importCount"></div>
+    <div class="import-preview" id="importPreview"></div>
+    <p style="font-size:11px;color:#aaa;margin-bottom:8px;">※取込後もFirebaseに保存されます。既存データには上書きしません。</p>
+    <div class="modal-footer">
+      <button id="importCancelBtn">キャンセル</button>
+      <button class="import-ok-btn" id="importOkBtn"><i class="ti ti-check"></i> 取込実行</button>
+    </div>
+  </div>
+</div>
+
+<!-- ファイル入力（非表示） -->
+<input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none">
 
 <!-- ローディング -->
 <div class="loading-overlay" id="loadingOverlay">
@@ -351,6 +431,7 @@ input,select{font-family:inherit;font-size:13px;}
 <!-- tooltip -->
 <div class="tooltip hidden" id="tip">
   <div class="tt-title" id="ttName"></div>
+  <div class="tt-row" id="ttKoban"></div>
   <div class="tt-row" id="ttNum"></div>
   <div class="tt-row" id="ttDates"></div>
   <div class="tt-row" id="ttOwner"></div>
@@ -378,6 +459,9 @@ const DAY_W=28;
 let tasks=[], holidays=[], viewStart=new Date(), editId=null, syncing=false, pendingDelId=null;
 let editSubtasks=[], editingSubIdx=-1;
 let loadedCount=0;
+let currentTab='main'; // 'main' | 'machining'
+let filterText='';
+let importPendingTasks=[];
 
 /* 展開状態はブラウザごとにローカル保持 */
 let expandedIds=new Set(JSON.parse(localStorage.getItem('gantt_expanded')||'[]'));
@@ -387,14 +471,12 @@ function saveExpanded(){localStorage.setItem('gantt_expanded',JSON.stringify([..
 function init(){
   viewStart=new Date(); viewStart.setDate(1);
 
-  /* 接続状態モニタ */
   db.ref('.info/connected').on('value',snap=>{
     const ok=snap.val();
     document.getElementById('connDot').className='conn-dot '+(ok?'online':'offline');
     document.getElementById('connLabel').textContent=ok?'同期中':'オフライン';
   });
 
-  /* tasks リアルタイム同期 */
   tasksRef.on('value',snap=>{
     const data=snap.val();
     if(data===null){
@@ -406,15 +488,13 @@ function init(){
     onLoaded();
   });
 
-  /* holidays リアルタイム同期 */
   holidaysRef.on('value',snap=>{
     const data=snap.val();
     holidays=data?Object.entries(data).map(([date,h])=>({date,name:h.name||''})):[];
     onLoaded();
-    if(document.getElementById('calModal')&&!document.getElementById('calModal').classList.contains('hidden'))renderHolidayList();
+    if(!document.getElementById('calModal').classList.contains('hidden'))renderHolidayList();
   });
 
-  /* イベント */
   document.getElementById('addBtn').onclick=()=>openModal();
   document.getElementById('cancelBtn').onclick=closeModal;
   document.getElementById('saveBtn').onclick=saveTask;
@@ -439,19 +519,34 @@ function init(){
     };
   });
 
+  /* Excel import */
+  document.getElementById('importBtn').onclick=()=>document.getElementById('fileInput').click();
+  document.getElementById('fileInput').onchange=e=>{
+    if(e.target.files[0])handleImportFile(e.target.files[0]);
+    e.target.value='';
+  };
+  document.getElementById('importCancelBtn').onclick=()=>{
+    document.getElementById('importModal').classList.add('hidden');
+    importPendingTasks=[];
+  };
+  document.getElementById('importOkBtn').onclick=executeImport;
+  document.getElementById('importModal').onclick=e=>{if(e.target.id==='importModal'){document.getElementById('importModal').classList.add('hidden');importPendingTasks=[];}};
+
+  /* Excel export */
+  document.getElementById('exportBtn').onclick=exportExcel;
+
   const L=document.getElementById('gLeft'),R=document.getElementById('gRight');
   L.addEventListener('scroll',()=>{if(syncing)return;syncing=true;R.scrollTop=L.scrollTop;syncing=false;});
   R.addEventListener('scroll',()=>{if(syncing)return;syncing=true;L.scrollTop=R.scrollTop;syncing=false;});
   document.addEventListener('mousemove',e=>{
     const tip=document.getElementById('tip');
-    if(!tip.classList.contains('hidden')){tip.style.left=Math.min(e.clientX+14,window.innerWidth-260)+'px';tip.style.top=Math.min(e.clientY+14,window.innerHeight-150)+'px';}
+    if(!tip.classList.contains('hidden')){tip.style.left=Math.min(e.clientX+14,window.innerWidth-290)+'px';tip.style.top=Math.min(e.clientY+14,window.innerHeight-150)+'px';}
   });
   document.addEventListener('click',e=>{
     if(pendingDelId!==null&&!e.target.closest('.confirm-del')){pendingDelId=null;renderList();}
   });
 }
 
-/* 両方のリスナーが初回発火したらローディング解除 */
 function onLoaded(){
   loadedCount++;
   render();
@@ -466,13 +561,15 @@ function loadSampleData(){
   const t=new Date(),fmt=d=>d.toISOString().slice(0,10);
   const add=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
   const sample=[
-    {id:Date.now()+1,name:'特注フレーム製作',num:'SP-001',owner:'田中',start:fmt(add(t,-5)),end:fmt(add(t,20)),status:'進行中',prog:35,note:'材料調達済み',subtasks:[
+    {id:Date.now()+1,name:'特注フレーム製作',koban:'24R001',num:'SP-001',owner:'田中',start:fmt(add(t,-5)),end:fmt(add(t,20)),status:'進行中',prog:35,note:'材料調達済み',subtasks:[
       {id:'s11',name:'材料調達',owner:'田中',start:fmt(add(t,-5)),end:fmt(add(t,0)),status:'完了',prog:100},
       {id:'s12',name:'機械加工',owner:'田中',start:fmt(add(t,1)),end:fmt(add(t,12)),status:'進行中',prog:40},
       {id:'s13',name:'仕上げ・検査',owner:'田中',start:fmt(add(t,13)),end:fmt(add(t,20)),status:'未着手',prog:0},
     ]},
-    {id:Date.now()+2,name:'カバー板金加工',num:'SP-002',owner:'鈴木',start:fmt(add(t,3)),end:fmt(add(t,30)),status:'未着手',prog:0,note:'',subtasks:[]},
-    {id:Date.now()+3,name:'特殊ネジ調達・組付け',num:'SP-003',owner:'佐藤',start:fmt(add(t,-15)),end:fmt(add(t,5)),status:'遅延',prog:60,note:'仕入れ先要確認',subtasks:[]},
+    {id:Date.now()+2,name:'カバー板金加工',koban:'24R002',num:'SP-002',owner:'鈴木',start:fmt(add(t,3)),end:fmt(add(t,30)),status:'未着手',prog:0,note:'',subtasks:[
+      {id:'s21',name:'機械加工',owner:'鈴木',start:fmt(add(t,3)),end:fmt(add(t,18)),status:'未着手',prog:0},
+    ]},
+    {id:Date.now()+3,name:'特殊ネジ調達・組付け',koban:'',num:'SP-003',owner:'佐藤',start:fmt(add(t,-15)),end:fmt(add(t,5)),status:'遅延',prog:60,note:'仕入れ先要確認',subtasks:[]},
   ];
   const obj={};
   sample.forEach((t,i)=>{obj[String(t.id)]={...t,_order:i};});
@@ -495,6 +592,46 @@ function saveHolidays(){
   holidaysRef.set(obj);
 }
 
+/* ─── タブ切替 ─── */
+function switchTab(tab){
+  currentTab=tab;
+  document.getElementById('tabMain').classList.toggle('active',tab==='main');
+  document.getElementById('tabMachining').classList.toggle('active',tab==='machining');
+  document.getElementById('machiningInfo').classList.toggle('hidden',tab!=='machining');
+  render();
+}
+
+/* ─── フィルター ─── */
+function onFilterInput(val){
+  filterText=val.trim();
+  document.getElementById('filterClear').style.display=filterText?'flex':'none';
+  render();
+}
+function clearFilter(){
+  filterText='';
+  document.getElementById('filterInput').value='';
+  document.getElementById('filterClear').style.display='none';
+  render();
+}
+
+function getDisplayTasks(){
+  let list=tasks;
+  /* フィルター */
+  if(filterText){
+    const q=filterText.toLowerCase();
+    list=list.filter(t=>
+      t.name.toLowerCase().includes(q)||
+      (t.num||'').toLowerCase().includes(q)||
+      (t.koban||'').toLowerCase().includes(q)
+    );
+  }
+  /* 機械加工タブ */
+  if(currentTab==='machining'){
+    list=list.filter(t=>t.subtasks&&t.subtasks.some(st=>st.name.includes('機械加工')));
+  }
+  return list;
+}
+
 /* ─── RENDER ─── */
 function render(){
   const y=viewStart.getFullYear(),m=viewStart.getMonth()+1;
@@ -504,14 +641,15 @@ function render(){
 
 function renderSummary(){
   const today=new Date();today.setHours(0,0,0,0);
+  const list=getDisplayTasks();
   let act=0,don=0,ove=0;
-  tasks.forEach(t=>{
+  list.forEach(t=>{
     if(t.status==='進行中')act++;
     if(t.status==='完了')don++;
     const e=new Date(t.end);e.setHours(0,0,0,0);
     if(t.status!=='完了'&&e<today)ove++;
   });
-  document.getElementById('s-all').textContent=tasks.length;
+  document.getElementById('s-all').textContent=list.length;
   document.getElementById('s-act').textContent=act;
   document.getElementById('s-don').textContent=don;
   document.getElementById('s-ove').textContent=ove;
@@ -519,20 +657,26 @@ function renderSummary(){
 
 function renderList(){
   const c=document.getElementById('taskRows');
-  if(!tasks.length){c.innerHTML='<div class="empty-state"><i class="ti ti-clipboard-list" aria-hidden="true"></i><br>案件がありません<br>「案件追加」から始めましょう</div>';return;}
+  const list=getDisplayTasks();
+  if(!list.length){
+    c.innerHTML='<div class="empty-state"><i class="ti ti-clipboard-list" aria-hidden="true"></i><br>'+(filterText||currentTab==='machining'?'該当する案件がありません':'案件がありません<br>「案件追加」から始めましょう')+'</div>';
+    return;
+  }
   let html='';
-  tasks.forEach(t=>{
+  list.forEach(t=>{
     const hasSub=t.subtasks&&t.subtasks.length>0;
     const isPendingDel=pendingDelId===t.id;
+    const kobanTxt=t.koban?`<span style="color:#5B89C8;margin-left:4px;">工番: ${esc(t.koban)}</span>`:'';
     html+=`<div class="t-row" data-id="${t.id}">
       <div class="t-cell" style="padding:0 4px;">
         ${hasSub?`<button class="expand-btn ${t.expanded?'open':''}" onclick="toggleExpand(event,${t.id})"><i class="ti ti-chevron-right"></i></button>`:'<span style="width:20px;display:inline-block"></span>'}
       </div>
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer;">
-        <div class="task-name">${esc(t.name)}</div><div class="task-num">${esc(t.num||'—')}</div>
+        <div class="task-name">${esc(t.name)}</div>
+        <div class="task-num">${esc(t.num||'—')}${kobanTxt}</div>
       </div>
-      <div class="t-cell" onclick="openModal(${t.id})" style="font-size:11px;color:#888;cursor:pointer">${esc(t.owner||'—')}</div>
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer"><span class="badge badge-${t.status}">${t.status}</span></div>
+      <div class="t-cell" onclick="openModal(${t.id})" style="font-size:11px;color:#888;cursor:pointer">${esc(t.owner||'—')}</div>
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer"><div class="prog-wrap"><div class="prog-bar" style="width:${t.prog}%"></div></div></div>
       <div class="t-cell"><div class="row-actions">
         ${isPendingDel
@@ -542,13 +686,18 @@ function renderList(){
     </div>`;
     if(t.expanded&&t.subtasks&&t.subtasks.length){
       t.subtasks.forEach(st=>{
-        html+=`<div class="st-row">
+        const isMachining=st.name.includes('機械加工');
+        const machiningCls=isMachining?' machining-row':'';
+        html+=`<div class="st-row${machiningCls}">
           <div class="t-cell"></div>
           <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer;">
-            <div class="st-indent"><i class="ti ti-corner-down-right" style="font-size:11px;color:#bbb;flex-shrink:0"></i><span class="st-name">${esc(st.name)}</span></div>
+            <div class="st-indent">
+              ${isMachining?'<i class="ti ti-tool" style="font-size:11px;color:#2DAA7A;flex-shrink:0"></i>':'<i class="ti ti-corner-down-right" style="font-size:11px;color:#bbb;flex-shrink:0"></i>'}
+              <span class="st-name">${esc(st.name)}</span>
+            </div>
           </div>
-          <div class="t-cell" style="font-size:10px;color:#aaa">${esc(st.owner||'—')}</div>
           <div class="t-cell"><span class="badge badge-${st.status}" style="font-size:9px">${st.status}</span></div>
+          <div class="t-cell" style="font-size:10px;color:#aaa">${esc(st.owner||'—')}</div>
           <div class="t-cell"><div class="prog-wrap"><div class="prog-bar" style="width:${st.prog}%"></div></div></div>
           <div class="t-cell"></div>
         </div>`;
@@ -592,8 +741,8 @@ function renderTimeline(){
   const days=getDays(),totalW=days.length*DAY_W;
   const today=new Date();today.setHours(0,0,0,0);
   const hs=holSet();
+  const list=getDisplayTasks();
 
-  /* 月ヘッダー */
   const months={};
   days.forEach(d=>{
     const k=d.getFullYear()+'-'+d.getMonth();
@@ -602,7 +751,6 @@ function renderTimeline(){
   });
   const mRow=Object.values(months).map(m=>`<div class="month-label" style="width:${m.count*DAY_W}px">${m.label}</div>`).join('');
 
-  /* 日付ヘッダー */
   const dRow=days.map(d=>{
     const isToday=d.getTime()===today.getTime();
     const dow=d.getDay();
@@ -619,13 +767,11 @@ function renderTimeline(){
     `<div class="month-row" style="width:${totalW}px">${mRow}</div>`+
     `<div class="day-row" style="width:${totalW}px">${dRow}</div>`;
 
-  /* バーエリア */
   const ba=document.getElementById('barsArea');
   ba.style.width=totalW+'px';
 
-  if(!tasks.length){ba.style.minHeight='80px';ba.innerHTML='';return;}
+  if(!list.length){ba.style.minHeight='80px';ba.innerHTML='';return;}
 
-  /* 列背景（土日・祝日） */
   let colBgs='';
   days.forEach((d,i)=>{
     const dow=d.getDay();
@@ -635,13 +781,11 @@ function renderTimeline(){
     else if(dow===0||isHol) colBgs+=`<div class="col-bg col-sun" style="left:${i*DAY_W}px;width:${DAY_W}px"></div>`;
   });
 
-  /* グリッド・今日ライン */
   let overlays='';
   days.forEach((d,i)=>{if(d.getDay()===1) overlays+=`<div class="grid-line" style="left:${i*DAY_W}px;z-index:1"></div>`;});
   const ti=days.findIndex(d=>d.getTime()===today.getTime());
   if(ti>=0) overlays+=`<div class="today-line" style="left:${ti*DAY_W+DAY_W/2}px"></div>`;
 
-  /* バー */
   const vs=days[0];
   function barX(ds){return Math.round((new Date(ds).setHours(0,0,0,0)-vs.getTime())/86400000);}
   function barW(s,e){return Math.max(1,barX(e)-barX(s)+1);}
@@ -653,7 +797,7 @@ function renderTimeline(){
   }
 
   let bars='',top=0;
-  tasks.forEach(t=>{
+  list.forEach(t=>{
     const ROW=40;
     bars+=`<div class="row-divider" style="top:${top+ROW}px"></div>`;
     const c=clip(barX(t.start),barW(t.start,t.end));
@@ -662,16 +806,26 @@ function renderTimeline(){
       bars+=`<div class="gantt-bar bar-parent bar-${t.status}" style="left:${c.left}px;width:${c.width}px;top:${top+10}px" onmouseenter="showTip(event,${t.id})" onmouseleave="hideTip()" onclick="openModal(${t.id})">${lbl}</div>`;
     }
     top+=ROW;
-    if(t.expanded&&t.subtasks&&t.subtasks.length){
-      t.subtasks.forEach(st=>{
-        const SROW=34;
-        bars+=`<div class="row-divider" style="top:${top+SROW}px"></div>`;
-        const sc=clip(barX(st.start),barW(st.start,st.end));
-        if(sc){
-          bars+=`<div class="gantt-bar bar-sub bar-${st.status}" style="left:${sc.left}px;width:${sc.width}px;top:${top+10}px" onmouseenter="showSubTip(event,${t.id},'${st.id}')" onmouseleave="hideTip()">${esc(st.name)}</div>`;
-        }
-        top+=SROW;
-      });
+
+    /* 機械加工タブでは機械加工サブタスクのみ、メインでは全サブタスク表示 */
+    const subsToShow=currentTab==='machining'
+      ?(t.subtasks||[]).filter(st=>st.name.includes('機械加工'))
+      :(t.expanded?(t.subtasks||[]):[]);
+
+    subsToShow.forEach(st=>{
+      const SROW=34;
+      bars+=`<div class="row-divider" style="top:${top+SROW}px"></div>`;
+      const sc=clip(barX(st.start),barW(st.start,st.end));
+      if(sc){
+        const isMachining=st.name.includes('機械加工');
+        const barCls=isMachining?'bar-機械加工':'';
+        bars+=`<div class="gantt-bar bar-sub ${barCls||'bar-'+st.status}" style="left:${sc.left}px;width:${sc.width}px;top:${top+10}px" onmouseenter="showSubTip(event,${t.id},'${st.id}')" onmouseleave="hideTip()">${esc(st.name)}</div>`;
+      }
+      top+=SROW;
+    });
+    /* 機械加工タブで展開していなかった場合も機械加工サブを強制展開 */
+    if(currentTab==='machining'&&!t.expanded){
+      // subtask rows already added above; keep top offset in sync
     }
   });
 
@@ -707,6 +861,7 @@ function openModal(id){
 
 function setFields(t){
   document.getElementById('fName').value=t.name;
+  document.getElementById('fKoban').value=t.koban||'';
   document.getElementById('fNum').value=t.num||'';
   document.getElementById('fOwner').value=t.owner||'';
   document.getElementById('fStart').value=t.start;
@@ -717,7 +872,7 @@ function setFields(t){
   document.getElementById('fNote').value=t.note||'';
 }
 function clearFields(){
-  ['fName','fNum','fOwner','fNote'].forEach(id=>document.getElementById(id).value='');
+  ['fName','fKoban','fNum','fOwner','fNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fStart').value=new Date().toISOString().slice(0,10);
   document.getElementById('fEnd').value='';
   document.getElementById('fStatus').value='未着手';
@@ -726,12 +881,12 @@ function clearFields(){
 }
 function renderSubtaskList(){
   const list=document.getElementById('subtaskList');
-  if(!editSubtasks.length){list.innerHTML='<div style="font-size:11px;color:#bbb;padding:4px 0">サブタスクなし</div>';return;}
+  if(!editSubtasks.length){list.innerHTML='<div style="font-size:11px;color:#bbb;padding:4px 0">工程なし</div>';return;}
   list.innerHTML=editSubtasks.map((st,i)=>{
     if(i===editingSubIdx){
       return `<div class="st-edit-form">
         <div class="st-edit-row">
-          <input type="text" id="se-name" value="${esc(st.name)}" placeholder="サブタスク名">
+          <input type="text" id="se-name" value="${esc(st.name)}" placeholder="工程名">
           <input type="date" id="se-start" value="${st.start}">
           <input type="date" id="se-end" value="${st.end}">
         </div>
@@ -750,7 +905,9 @@ function renderSubtaskList(){
         </div>
       </div>`;
     }
-    return `<div class="st-item">
+    const isMachining=st.name.includes('機械加工');
+    return `<div class="st-item${isMachining?' machining-item':''}">
+      ${isMachining?'<i class="ti ti-tool" style="color:#2DAA7A;font-size:13px;flex-shrink:0"></i>':''}
       <div class="st-item-name">${esc(st.name)}</div>
       <div class="st-item-info">${st.start} 〜 ${st.end}</div>
       <span class="badge badge-${st.status}" style="font-size:9px">${st.status}</span>
@@ -793,7 +950,7 @@ function saveTask(){
   if(!start){alert('開始日を入力してください');return;}
   if(!end){alert('納期を入力してください');return;}
   if(start>end){alert('納期は開始日以降に設定してください');return;}
-  const d={name,num:document.getElementById('fNum').value.trim(),owner:document.getElementById('fOwner').value.trim(),start,end,status:document.getElementById('fStatus').value,prog:parseInt(document.getElementById('fProg').value),note:document.getElementById('fNote').value.trim(),subtasks:editSubtasks};
+  const d={name,koban:document.getElementById('fKoban').value.trim(),num:document.getElementById('fNum').value.trim(),owner:document.getElementById('fOwner').value.trim(),start,end,status:document.getElementById('fStatus').value,prog:parseInt(document.getElementById('fProg').value),note:document.getElementById('fNote').value.trim(),subtasks:editSubtasks};
   if(editId){const i=tasks.findIndex(t=>t.id===editId);if(i>=0)tasks[i]={...tasks[i],...d,expanded:tasks[i].expanded};}
   else{d.id=Date.now();d.expanded=false;tasks.push(d);}
   saveTasks();closeModal();
@@ -810,7 +967,7 @@ function renderHolidayList(){
   const list=document.getElementById('holidayList');
   const sorted=[...holidays].sort((a,b)=>a.date.localeCompare(b.date));
   if(!sorted.length){list.innerHTML='<div class="hd-empty">登録済みの休日はありません</div>';return;}
-  list.innerHTML=sorted.map((h,i)=>{
+  list.innerHTML=sorted.map(h=>{
     const d=new Date(h.date);
     const dow=['日','月','火','水','木','金','土'][d.getDay()];
     return `<div class="hd-item">
@@ -825,9 +982,7 @@ function addHoliday(){
   const date=document.getElementById('hdDate').value;
   const name=document.getElementById('hdName').value.trim();
   if(!date){document.getElementById('hdDate').focus();return;}
-  if(holidays.find(h=>h.date===date)){
-    alert('その日付はすでに登録されています');return;
-  }
+  if(holidays.find(h=>h.date===date)){alert('その日付はすでに登録されています');return;}
   holidays.push({date,name});
   saveHolidays();
   document.getElementById('hdDate').value='';
@@ -838,11 +993,200 @@ function removeHoliday(date){
   saveHolidays();
 }
 
+/* ─── Excel インポート ─── */
+function parseJaDate(str){
+  if(!str)return null;
+  str=String(str).trim();
+  /* 既にISO形式の場合 */
+  if(/^\d{4}-\d{2}-\d{2}$/.test(str))return str;
+  /* M/D または MM/DD 形式 */
+  const m=str.match(/^(\d{1,2})\/(\d{1,2})$/);
+  if(!m)return null;
+  const mon=parseInt(m[1]),day=parseInt(m[2]);
+  if(mon<1||mon>12||day<1||day>31)return null;
+  /* 10〜12月 → 2025年, 1〜9月 → 2026年（FY2025基準） */
+  const yr=mon>=10?2025:2026;
+  return `${yr}-${String(mon).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+
+async function handleImportFile(file){
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:'array'});
+    const ws=wb.Sheets[wb.SheetNames[0]];
+    const range=XLSX.utils.decode_range(ws['!ref']||'A1');
+
+    const cell=(r,c)=>{
+      const addr=XLSX.utils.encode_cell({r,c});
+      const v=ws[addr];
+      if(!v)return '';
+      /* 日付シリアル値を M/D 文字列に変換 */
+      if(v.t==='n'&&v.z&&v.z.includes('/')){
+        const dt=XLSX.SSF.parse_date_code(v.v);
+        if(dt)return `${dt.m}/${dt.d}`;
+      }
+      return String(v.v||'').trim();
+    };
+
+    /* データは行インデックス6〜（0-based）= Excelの7行目〜 */
+    const groups={};
+    let lastSpec='',lastPnum='',lastKoban='';
+
+    for(let r=6;r<=range.e.r;r++){
+      const spec=cell(r,0)||lastSpec;
+      const pnum=cell(r,1)||lastPnum;
+      const koban=cell(r,2)||lastKoban;
+      if(!koban)continue;
+
+      const komatsuDeadline=cell(r,4);
+      const qty=cell(r,5);
+      const stampNo=cell(r,6);
+      const transportOut=cell(r,7); /* あわら→吉田機工 = 加工開始 */
+      const transportIn=cell(r,8);  /* 吉田機工→あわら = 加工終了 */
+
+      if(spec)lastSpec=spec;
+      if(pnum)lastPnum=pnum;
+      lastKoban=koban;
+
+      if(!groups[koban])groups[koban]={spec,pnum,koban,rows:[]};
+      groups[koban].rows.push({komatsuDeadline,qty,stampNo,transportOut,transportIn});
+    }
+
+    /* タスク変換 */
+    importPendingTasks=[];
+    for(const [koban,g] of Object.entries(groups)){
+      const starts=g.rows.map(row=>parseJaDate(row.transportOut)).filter(Boolean).sort();
+      const ends=g.rows.map(row=>parseJaDate(row.komatsuDeadline)).filter(Boolean).sort();
+      if(!starts.length||!ends.length)continue;
+
+      const subtasks=g.rows
+        .filter(row=>parseJaDate(row.transportOut)&&parseJaDate(row.transportIn))
+        .map(row=>({
+          id:'s'+Date.now()+Math.floor(Math.random()*1e6),
+          name:row.stampNo?'刻印No.'+row.stampNo.trim():'機械加工',
+          owner:'',
+          start:parseJaDate(row.transportOut),
+          end:parseJaDate(row.transportIn),
+          status:'未着手',
+          prog:0
+        }));
+
+      importPendingTasks.push({
+        id:Date.now()+Math.floor(Math.random()*1e6),
+        name:g.pnum||g.spec||koban,
+        koban:koban,
+        num:g.spec||'',
+        owner:'',
+        start:starts[0],
+        end:ends[ends.length-1],
+        status:'未着手',
+        prog:0,
+        note:'',
+        subtasks,
+        expanded:false
+      });
+    }
+
+    if(!importPendingTasks.length){alert('取込可能なデータが見つかりませんでした。\nExcelの形式を確認してください。');return;}
+
+    /* プレビュー表示 */
+    document.getElementById('importCount').textContent=`${importPendingTasks.length}件の案件をインポートします`;
+    const rows=importPendingTasks.map(t=>`<tr>
+      <td>${esc(t.name)}</td>
+      <td>${esc(t.koban)}</td>
+      <td>${t.start}</td>
+      <td>${t.end}</td>
+      <td>${t.subtasks.length}工程</td>
+    </tr>`).join('');
+    document.getElementById('importPreview').innerHTML=`<table>
+      <thead><tr><th>案件名</th><th>工番</th><th>開始日</th><th>納期</th><th>工程数</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+    document.getElementById('importModal').classList.remove('hidden');
+  }catch(err){
+    console.error(err);
+    alert('Excelの読み込みに失敗しました。\n'+err.message);
+  }
+}
+
+function executeImport(){
+  if(!importPendingTasks.length)return;
+  tasks=[...tasks,...importPendingTasks];
+  saveTasks();
+  importPendingTasks=[];
+  document.getElementById('importModal').classList.add('hidden');
+}
+
+/* ─── Excel エクスポート ─── */
+function exportExcel(){
+  const wb=XLSX.utils.book_new();
+
+  /* Sheet1: 案件一覧 */
+  const taskData=[['案件名','工番','品番','担当者','開始日','納期','ステータス','進捗率','メモ']];
+  tasks.forEach(t=>{
+    taskData.push([t.name,t.koban||'',t.num||'',t.owner||'',t.start,t.end,t.status,t.prog+'%',t.note||'']);
+    (t.subtasks||[]).forEach(st=>{
+      taskData.push(['  └ '+st.name,'','',st.owner||'',st.start,st.end,st.status,st.prog+'%','']);
+    });
+  });
+  const ws1=XLSX.utils.aoa_to_sheet(taskData);
+  /* 列幅設定 */
+  ws1['!cols']=[{wch:30},{wch:12},{wch:16},{wch:10},{wch:12},{wch:12},{wch:8},{wch:8},{wch:24}];
+  XLSX.utils.book_append_sheet(wb,ws1,'案件一覧');
+
+  /* Sheet2: ガントチャート（日付グリッド） */
+  const days=getDays();
+  const ganttHeader=['案件名','工番','品番','担当者','ステータス',...days.map(d=>(d.getMonth()+1)+'/'+d.getDate())];
+  const ganttData=[ganttHeader];
+  tasks.forEach(t=>{
+    const row=[t.name,t.koban||'',t.num||'',t.owner||'',t.status];
+    days.forEach(d=>{
+      const ds=d.toISOString().slice(0,10);
+      row.push(ds>=t.start&&ds<=t.end?'■':'');
+    });
+    ganttData.push(row);
+    if(t.subtasks&&t.subtasks.length){
+      t.subtasks.forEach(st=>{
+        const srow=['  └ '+st.name,'','','',st.status];
+        days.forEach(d=>{
+          const ds=d.toISOString().slice(0,10);
+          srow.push(ds>=st.start&&ds<=st.end?'▪':'');
+        });
+        ganttData.push(srow);
+      });
+    }
+  });
+  const ws2=XLSX.utils.aoa_to_sheet(ganttData);
+  ws2['!cols']=[{wch:28},{wch:12},{wch:14},{wch:10},{wch:8},...days.map(()=>({wch:3}))];
+  XLSX.utils.book_append_sheet(wb,ws2,'ガントチャート');
+
+  /* Sheet3: 機械加工専用日程表 */
+  const mTasks=tasks.filter(t=>t.subtasks&&t.subtasks.some(st=>st.name.includes('機械加工')));
+  const mHeader=['案件名','工番','品番','担当者','機械加工開始','機械加工終了','ステータス','工程数'];
+  const mData=[mHeader];
+  mTasks.forEach(t=>{
+    const mSubs=(t.subtasks||[]).filter(st=>st.name.includes('機械加工'));
+    const mStart=mSubs.map(s=>s.start).sort()[0]||'';
+    const mEnd=mSubs.map(s=>s.end).sort().pop()||'';
+    mData.push([t.name,t.koban||'',t.num||'',t.owner||'',mStart,mEnd,t.status,mSubs.length]);
+    mSubs.forEach(st=>{
+      mData.push(['  └ '+st.name,'','','',st.start,st.end,st.status,'']);
+    });
+  });
+  const ws3=XLSX.utils.aoa_to_sheet(mData);
+  ws3['!cols']=[{wch:28},{wch:12},{wch:14},{wch:10},{wch:14},{wch:14},{wch:8},{wch:8}];
+  XLSX.utils.book_append_sheet(wb,ws3,'機械加工専用日程表');
+
+  const today=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,`ガントチャート_${today}.xlsx`);
+}
+
 /* ─── TOOLTIP ─── */
 function showTip(e,id){
   const t=tasks.find(x=>x.id===id);if(!t)return;
   const tip=document.getElementById('tip');tip.classList.remove('hidden');
   document.getElementById('ttName').textContent=t.name;
+  document.getElementById('ttKoban').textContent=t.koban?'工番: '+t.koban:'';
   document.getElementById('ttNum').textContent=t.num?'品番: '+t.num:'';
   document.getElementById('ttDates').textContent='期間: '+t.start+' 〜 '+t.end;
   document.getElementById('ttOwner').textContent=t.owner?'担当: '+t.owner:'';
@@ -854,6 +1198,7 @@ function showSubTip(e,pid,sid){
   const st=t.subtasks.find(x=>x.id==sid);if(!st)return;
   const tip=document.getElementById('tip');tip.classList.remove('hidden');
   document.getElementById('ttName').textContent='↳ '+st.name;
+  document.getElementById('ttKoban').textContent='';
   document.getElementById('ttNum').textContent='親案件: '+t.name;
   document.getElementById('ttDates').textContent='期間: '+st.start+' 〜 '+st.end;
   document.getElementById('ttOwner').textContent=st.owner?'担当: '+st.owner:'';
