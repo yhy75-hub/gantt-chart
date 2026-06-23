@@ -1696,28 +1696,13 @@ async function handleImportFile(file){
       for(const [partType,rows] of Object.entries(partGroups)){
         const kakouSaki=getDefaultKakouSaki(specName,partType);
 
-        /* ブレードは品番ごとに別サブタスク */
-        if(partType==='ブレード'){
-          const byPnum={};
-          rows.forEach(row=>{
-            if(!byPnum[row.pnum]) byPnum[row.pnum]=[];
-            byPnum[row.pnum].push(row);
-          });
-          for(const [fullPnum,prows] of Object.entries(byPnum)){
-            const starts=prows.map(row=>parseJaDate(row.transportOut)).filter(Boolean).sort();
-            const ends=prows.map(row=>parseJaDate(row.transportIn)).filter(Boolean).sort();
-            if(!starts.length||!ends.length) continue;
-            const s=starts[0],e=ends[ends.length-1];
-            parentStarts.push(s); parentEnds.push(e);
-            subtasks.push({id:'s'+uniqueId(),name:'機械加工（'+partType+'）',owner:'',start:s,end:e,status:'未着手',prog:0,kakouSaki,note:fullPnum});
-          }
-        }else{
-          const starts=rows.map(row=>parseJaDate(row.transportOut)).filter(Boolean).sort();
-          const ends=rows.map(row=>parseJaDate(row.transportIn)).filter(Boolean).sort();
-          if(!starts.length||!ends.length) continue;
-          const s=starts[0],e=ends[ends.length-1];
+        /* 納期ごとに1サブタスク */
+        for(const row of rows){
+          const s=parseJaDate(row.transportOut);
+          const e=parseJaDate(row.transportIn);
+          if(!s||!e) continue;
           parentStarts.push(s); parentEnds.push(e);
-          subtasks.push({id:'s'+uniqueId(),name:'機械加工（'+partType+'）',owner:'',start:s,end:e,status:'未着手',prog:0,kakouSaki,note:''});
+          subtasks.push({id:'s'+uniqueId(),name:'機械加工（'+partType+'）',owner:'',start:s,end:e,status:'未着手',prog:0,kakouSaki,note:row.pnum||''});
         }
       }
 
