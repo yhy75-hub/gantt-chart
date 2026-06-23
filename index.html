@@ -712,33 +712,42 @@ function init(){
     if(dragState){
       const dx=e.clientX-dragState.startX;
       const daysDelta=Math.round(dx/DAY_W);
-      if(Math.abs(dx)>5) dragState.moved=true;
       if(daysDelta!==dragState.lastDelta){
         dragState.lastDelta=daysDelta;
-        let newStart=addDays(dragState.origStart,daysDelta);
-        let newEnd=addDays(dragState.origEnd,daysDelta);
-        if(dragState.subId!==''){
-          /* clamp to parent */
-          if(newStart<dragState.parentStart){
-            const shift=daysBetween(newStart,dragState.parentStart);
-            newStart=addDays(newStart,shift);
-            newEnd=addDays(newEnd,shift);
+        let newStart=dragState.origStart,newEnd=dragState.origEnd;
+        const mode=dragState.mode||'move';
+        if(mode==='move'){
+          newStart=addDays(dragState.origStart,daysDelta);
+          newEnd=addDays(dragState.origEnd,daysDelta);
+          /* clamp subtask to parent */
+          if(dragState.subId!==''){
+            if(newStart<dragState.parentStart){
+              const shift=daysBetween(newStart,dragState.parentStart);
+              newStart=addDays(newStart,shift);newEnd=addDays(newEnd,shift);
+            }
+            if(newEnd>dragState.parentEnd){
+              const shift=daysBetween(dragState.parentEnd,newEnd);
+              newStart=addDays(newStart,-shift);newEnd=addDays(newEnd,-shift);
+            }
           }
-          if(newEnd>dragState.parentEnd){
-            const shift=daysBetween(dragState.parentEnd,newEnd);
-            newStart=addDays(newStart,-shift);
-            newEnd=addDays(newEnd,-shift);
-          }
+        }else if(mode==='resize-start'){
+          newStart=addDays(dragState.origStart,daysDelta);
+          newEnd=dragState.origEnd;
+          if(newStart>=newEnd) newStart=addDays(newEnd,-1);
+          if(dragState.subId!==''&&newStart<dragState.parentStart) newStart=dragState.parentStart;
+        }else if(mode==='resize-end'){
+          newStart=dragState.origStart;
+          newEnd=addDays(dragState.origEnd,daysDelta);
+          if(newEnd<=newStart) newEnd=addDays(newStart,1);
+          if(dragState.subId!==''&&newEnd>dragState.parentEnd) newEnd=dragState.parentEnd;
         }
         dragState.previewStart=newStart;
         dragState.previewEnd=newEnd;
         /* update bar DOM directly */
         const days=getDays();
         const vs=days[0];
-        function bx(ds){return Math.round((new Date(ds).setHours(0,0,0,0)-vs.getTime())/86400000);}
-        function bw(s,en){return Math.max(1,bx(en)-bx(s)+1);}
-        const si=bx(newStart),wi=bw(newStart,newEnd);
-        const ei=si+wi;
+        const bx=ds=>Math.round((new Date(ds).setHours(0,0,0,0)-vs.getTime())/86400000);
+        const si=bx(newStart),ei=bx(newEnd)+1;
         const cs=Math.max(0,si),ce=Math.min(days.length,ei);
         if(ce>cs&&dragState.el){
           dragState.el.style.left=(cs*DAY_W)+'px';
@@ -751,32 +760,26 @@ function init(){
   document.addEventListener('mouseup',e=>{
     if(dragState){
       hideTip();
-      if(dragState.moved){
-        /* save new dates */
+      /* lastDelta===0 → 日付変化なし → クリックとみなす */
+      if(dragState.lastDelta===0){
+        const {taskId,subId}=dragState;
+        dragState=null;
+        if(subId!=='') openSubPopup(taskId,subId,e.clientX,e.clientY);
+        else openModal(taskId);
+      }else{
+        /* 日付変化あり → 保存 */
         const t=tasks.find(x=>x.id===dragState.taskId);
         if(t){
           if(dragState.subId===''){
-            t.start=dragState.previewStart||dragState.origStart;
-            t.end=dragState.previewEnd||dragState.origEnd;
+            t.start=dragState.previewStart;
+            t.end=dragState.previewEnd;
           }else{
             const st=(t.subtasks||[]).find(x=>x.id===dragState.subId);
-            if(st){
-              st.start=dragState.previewStart||dragState.origStart;
-              st.end=dragState.previewEnd||dragState.origEnd;
-            }
+            if(st){st.start=dragState.previewStart;st.end=dragState.previewEnd;}
           }
           saveTasks();
         }
         dragState=null;
-      }else{
-        /* click without drag */
-        const {taskId,subId}=dragState;
-        dragState=null;
-        if(subId!==''){
-          openSubPopup(taskId,subId,e.clientX,e.clientY);
-        }else{
-          openModal(taskId);
-        }
       }
     }
   });
@@ -1058,7 +1061,7 @@ function renderTimeline(){
     const c=clip(barX(t.start),barW(t.start,t.end));
     if(c){
       const lbl=esc(t.name)+(t.prog>0?' '+t.prog+'%':'');
-      bars+=`<div id="bar-${t.id}" class="gantt-bar bar-parent bar-${t.status}" style="left:${c.left}px;width:${c.width}px;top:${top+10}px" onmousedown="barDown(event,${t.id},'')" onmouseenter="showTip(event,${t.id})" onmouseleave="hideTip()">${lbl}</div>`;
+      bars+=`<div id="bar-${t.id}" class="gantt-bar bar-parent bar-${t.status}" style="left:${c.left}px;width:${c.width}px;top:${top+10}px" onmousedown="barDown(event,${t.id},'')" onmousemove="updateBarCursor(event,this)" onmouseleave="hideTip();this.style.cursor='grab'" onmouseenter="showTip(event,${t.id})">${lbl}</div>`;
     }
     top+=ROW;
 
@@ -1073,7 +1076,7 @@ function renderTimeline(){
       if(sc){
         const isMachining=st.name.includes('機械加工');
         const barCls=isMachining?'bar-機械加工':'bar-'+st.status;
-        bars+=`<div id="bar-${t.id}-${st.id}" class="gantt-bar bar-sub ${barCls}" style="left:${sc.left}px;width:${sc.width}px;top:${top+10}px" onmousedown="barDown(event,${t.id},'${st.id}')" onmouseenter="showSubTip(event,${t.id},'${st.id}')" onmouseleave="hideTip()">${esc(st.name)}</div>`;
+        bars+=`<div id="bar-${t.id}-${st.id}" class="gantt-bar bar-sub ${barCls}" style="left:${sc.left}px;width:${sc.width}px;top:${top+10}px" onmousedown="barDown(event,${t.id},'${st.id}')" onmousemove="updateBarCursor(event,this)" onmouseleave="hideTip();this.style.cursor='grab'" onmouseenter="showSubTip(event,${t.id},'${st.id}')">${esc(st.name)}</div>`;
       }
       top+=SROW;
     });
@@ -1089,7 +1092,7 @@ function scrollToToday(){
   if(idx>=0)document.getElementById('gRight').scrollLeft=Math.max(0,idx*DAY_W-120);
 }
 
-/* ─── Drag to move bars ─── */
+/* ─── Drag to move/resize bars ─── */
 function barDown(e,taskId,subId){
   e.preventDefault();
   e.stopPropagation();
@@ -1108,16 +1111,28 @@ function barDown(e,taskId,subId){
   }
   const barId=subId===''?`bar-${taskId}`:`bar-${taskId}-${subId}`;
   const el=document.getElementById(barId);
+  /* 端10px以内ならリサイズ、それ以外は移動 */
+  const rect=e.currentTarget.getBoundingClientRect();
+  const relX=e.clientX-rect.left;
+  let mode='move';
+  if(relX<=10) mode='resize-start';
+  else if(relX>=rect.width-10) mode='resize-end';
   dragState={
-    el,taskId,subId,
+    el,taskId,subId,mode,
     startX:e.clientX,
     origStart,origEnd,
     parentStart,parentEnd,
-    moved:false,
     lastDelta:0,
     previewStart:origStart,
     previewEnd:origEnd
   };
+}
+
+function updateBarCursor(e,el){
+  if(dragState) return;
+  const rect=el.getBoundingClientRect();
+  const relX=e.clientX-rect.left;
+  el.style.cursor=(relX<=10||relX>=rect.width-10)?'ew-resize':'grab';
 }
 
 /* ─── Bar click inline editor ─── */
