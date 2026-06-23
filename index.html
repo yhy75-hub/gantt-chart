@@ -560,6 +560,52 @@ input,select{font-family:inherit;font-size:13px;}
   </div>
 </div>
 
+<!-- 親タスク編集ポップアップ -->
+<div class="st-popup hidden" id="taskPopup" onclick="event.stopPropagation()">
+  <div class="st-popup-title"><i class="ti ti-layout-kanban" style="color:#378ADD"></i><span id="tpTitle">案件を編集</span></div>
+  <div class="sp-row"><label>案件名 *</label><input type="text" id="tpName"></div>
+  <div class="sp-row-2">
+    <div><label>工番</label><input type="text" id="tpKoban" placeholder="例：24R085"></div>
+    <div><label>刻印No.</label><input type="text" id="tpStampNo" placeholder="例：1551"></div>
+  </div>
+  <div class="sp-row-2">
+    <div><label>品番</label><input type="text" id="tpNum"></div>
+    <div><label>担当者</label><input type="text" id="tpOwner"></div>
+  </div>
+  <div class="sp-row-2">
+    <div><label>開始日 *</label><input type="date" id="tpStart"></div>
+    <div><label>納期 *</label><input type="date" id="tpEnd"></div>
+  </div>
+  <div class="sp-row-2">
+    <div><label>ステータス</label>
+      <select id="tpStatus">
+        <option value="未着手">未着手</option><option value="進行中">進行中</option>
+        <option value="完了">完了</option><option value="遅延">遅延</option><option value="保留">保留</option>
+      </select>
+    </div>
+    <div><label>進捗率</label>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
+        <input type="range" id="tpProg" min="0" max="100" step="5" style="flex:1" oninput="document.getElementById('tpProgVal').textContent=this.value+'%'">
+        <span id="tpProgVal" style="font-size:11px;font-weight:500;min-width:30px;text-align:right;color:#555">0%</span>
+      </div>
+    </div>
+  </div>
+  <div class="sp-row"><label>加工先</label>
+    <div class="sp-kakou-wrap">
+      <select id="tpKakouSaki" onchange="onKakouSakiChange('tpKakouSaki','tpKakouSakiOther')">
+        <option value="">未設定</option><option value="吉田機工">吉田機工</option>
+        <option value="タガミ・イーエクス">タガミ・イーエクス</option><option value="その他">その他</option>
+      </select>
+      <input type="text" id="tpKakouSakiOther" placeholder="加工先を入力" style="display:none;">
+    </div>
+  </div>
+  <div class="sp-row"><label>メモ</label><input type="text" id="tpNote" placeholder="備考など"></div>
+  <div class="sp-foot">
+    <button class="sp-cancel" onclick="closeTaskPopup()">キャンセル</button>
+    <button class="sp-save" onclick="saveTaskPopup()"><i class="ti ti-check"></i> 保存</button>
+  </div>
+</div>
+
 <!-- Bar editor popup -->
 <div class="bar-editor hidden" id="barEditor" onclick="event.stopPropagation()">
   <div class="be-title" id="beTitle"></div>
@@ -710,6 +756,7 @@ function init(){
     }
     /* drag handling */
     if(dragState){
+      e.preventDefault();
       const dx=e.clientX-dragState.startX;
       const daysDelta=Math.round(dx/DAY_W);
       if(daysDelta!==dragState.lastDelta){
@@ -760,38 +807,27 @@ function init(){
   document.addEventListener('mouseup',e=>{
     if(dragState){
       hideTip();
-      /* lastDelta===0 → 日付変化なし → クリックとみなす */
-      if(dragState.lastDelta===0){
-        const {taskId,subId}=dragState;
-        dragState=null;
-        if(subId!=='') openSubPopup(taskId,subId,e.clientX,e.clientY);
-        else openModal(taskId);
-      }else{
+      if(dragState.lastDelta!==0){
         /* 日付変化あり → 保存 */
         const t=tasks.find(x=>x.id===dragState.taskId);
         if(t){
-          if(dragState.subId===''){
-            t.start=dragState.previewStart;
-            t.end=dragState.previewEnd;
-          }else{
-            const st=(t.subtasks||[]).find(x=>x.id===dragState.subId);
-            if(st){st.start=dragState.previewStart;st.end=dragState.previewEnd;}
-          }
+          if(dragState.subId===''){t.start=dragState.previewStart;t.end=dragState.previewEnd;}
+          else{const st=(t.subtasks||[]).find(x=>x.id===dragState.subId);if(st){st.start=dragState.previewStart;st.end=dragState.previewEnd;}}
           saveTasks();
         }
-        dragState=null;
+        dragJustCompleted=true;
+        setTimeout(()=>{dragJustCompleted=false;},80);
       }
+      /* lastDelta===0 のときは onclick が自然に発火してポップアップを開く */
+      dragState=null;
     }
   });
 
   document.addEventListener('click',e=>{
     if(pendingDelId!==null&&!e.target.closest('.confirm-del')){pendingDelId=null;renderList();}
-    if(!e.target.closest('#barEditor')){
-      document.getElementById('barEditor').classList.add('hidden');
-    }
-    if(!e.target.closest('#stPopup')){
-      closeSubPopup();
-    }
+    if(!e.target.closest('#barEditor')) document.getElementById('barEditor').classList.add('hidden');
+    if(!e.target.closest('#stPopup')) closeSubPopup();
+    if(!e.target.closest('#taskPopup')) closeTaskPopup();
   });
 }
 
@@ -1061,7 +1097,7 @@ function renderTimeline(){
     const c=clip(barX(t.start),barW(t.start,t.end));
     if(c){
       const lbl=esc(t.name)+(t.prog>0?' '+t.prog+'%':'');
-      bars+=`<div id="bar-${t.id}" class="gantt-bar bar-parent bar-${t.status}" style="left:${c.left}px;width:${c.width}px;top:${top+10}px" onmousedown="barDown(event,${t.id},'')" onmousemove="updateBarCursor(event,this)" onmouseleave="hideTip();this.style.cursor='grab'" onmouseenter="showTip(event,${t.id})">${lbl}</div>`;
+      bars+=`<div id="bar-${t.id}" class="gantt-bar bar-parent bar-${t.status}" style="left:${c.left}px;width:${c.width}px;top:${top+10}px" onclick="barClick(event,${t.id},'')" onmousedown="barDown(event,${t.id},'')" onmousemove="updateBarCursor(event,this)" onmouseleave="hideTip();this.style.cursor='grab'" onmouseenter="showTip(event,${t.id})">${lbl}</div>`;
     }
     top+=ROW;
 
@@ -1076,7 +1112,7 @@ function renderTimeline(){
       if(sc){
         const isMachining=st.name.includes('機械加工');
         const barCls=isMachining?'bar-機械加工':'bar-'+st.status;
-        bars+=`<div id="bar-${t.id}-${st.id}" class="gantt-bar bar-sub ${barCls}" style="left:${sc.left}px;width:${sc.width}px;top:${top+10}px" onmousedown="barDown(event,${t.id},'${st.id}')" onmousemove="updateBarCursor(event,this)" onmouseleave="hideTip();this.style.cursor='grab'" onmouseenter="showSubTip(event,${t.id},'${st.id}')">${esc(st.name)}</div>`;
+        bars+=`<div id="bar-${t.id}-${st.id}" class="gantt-bar bar-sub ${barCls}" style="left:${sc.left}px;width:${sc.width}px;top:${top+10}px" onclick="barClick(event,${t.id},'${st.id}')" onmousedown="barDown(event,${t.id},'${st.id}')" onmousemove="updateBarCursor(event,this)" onmouseleave="hideTip();this.style.cursor='grab'" onmouseenter="showSubTip(event,${t.id},'${st.id}')">${esc(st.name)}</div>`;
       }
       top+=SROW;
     });
@@ -1093,9 +1129,16 @@ function scrollToToday(){
 }
 
 /* ─── Drag to move/resize bars ─── */
-function barDown(e,taskId,subId){
-  e.preventDefault();
+let dragJustCompleted=false;
+
+function barClick(e,taskId,subId){
+  if(dragJustCompleted)return;
   e.stopPropagation();
+  if(subId!=='') openSubPopup(taskId,subId,e.clientX,e.clientY);
+  else openTaskPopup(taskId,e.clientX,e.clientY);
+}
+
+function barDown(e,taskId,subId){
   hideTip();
   const t=tasks.find(x=>x.id===taskId);
   if(!t) return;
@@ -1272,6 +1315,73 @@ function saveSubPopup(){
 function closeSubPopup(){
   document.getElementById('stPopup').classList.add('hidden');
   subPopupState=null;
+}
+
+/* ─── 親タスク編集ポップアップ ─── */
+let taskPopupState=null;
+
+function openTaskPopup(taskId,cx,cy){
+  const t=tasks.find(x=>x.id===taskId);if(!t)return;
+  taskPopupState={taskId};
+  document.getElementById('tpTitle').textContent=t.name;
+  document.getElementById('tpName').value=t.name;
+  document.getElementById('tpKoban').value=t.koban||'';
+  document.getElementById('tpStampNo').value=t.stampNo||'';
+  document.getElementById('tpNum').value=t.num||'';
+  document.getElementById('tpOwner').value=t.owner||'';
+  document.getElementById('tpStart').value=t.start;
+  document.getElementById('tpEnd').value=t.end;
+  document.getElementById('tpStatus').value=t.status;
+  document.getElementById('tpProg').value=t.prog||0;
+  document.getElementById('tpProgVal').textContent=(t.prog||0)+'%';
+  document.getElementById('tpNote').value=t.note||'';
+  const ks=t.kakouSaki||'';
+  const known=['','吉田機工','タガミ・イーエクス'];
+  if(known.includes(ks)){
+    document.getElementById('tpKakouSaki').value=ks;
+    document.getElementById('tpKakouSakiOther').style.display='none';
+    document.getElementById('tpKakouSakiOther').value='';
+  }else{
+    document.getElementById('tpKakouSaki').value='その他';
+    document.getElementById('tpKakouSakiOther').value=ks;
+    document.getElementById('tpKakouSakiOther').style.display='block';
+  }
+  const pop=document.getElementById('taskPopup');
+  pop.classList.remove('hidden');
+  const W=300,H=520;
+  let left=cx+10,top=cy+10;
+  if(left+W>window.innerWidth-8) left=cx-W-10;
+  if(top+H>window.innerHeight-8) top=cy-H-10;
+  pop.style.left=Math.max(4,left)+'px';
+  pop.style.top=Math.max(4,top)+'px';
+}
+
+function saveTaskPopup(){
+  if(!taskPopupState)return;
+  const name=document.getElementById('tpName').value.trim();
+  const start=document.getElementById('tpStart').value;
+  const end=document.getElementById('tpEnd').value;
+  if(!name){document.getElementById('tpName').focus();return;}
+  if(!start||!end){alert('開始日と納期を入力してください');return;}
+  if(start>end){alert('納期は開始日以降にしてください');return;}
+  const t=tasks.find(x=>x.id===taskPopupState.taskId);
+  if(!t){closeTaskPopup();return;}
+  t.name=name;
+  t.koban=document.getElementById('tpKoban').value.trim();
+  t.stampNo=document.getElementById('tpStampNo').value.trim();
+  t.num=document.getElementById('tpNum').value.trim();
+  t.owner=document.getElementById('tpOwner').value.trim();
+  t.start=start;t.end=end;
+  t.status=document.getElementById('tpStatus').value;
+  t.prog=parseInt(document.getElementById('tpProg').value);
+  t.note=document.getElementById('tpNote').value.trim();
+  t.kakouSaki=resolveKakouSaki('tpKakouSaki','tpKakouSakiOther');
+  saveTasks();closeTaskPopup();
+}
+
+function closeTaskPopup(){
+  document.getElementById('taskPopup').classList.add('hidden');
+  taskPopupState=null;
 }
 
 /* ─── 案件モーダル ─── */
