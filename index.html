@@ -362,6 +362,7 @@ input,select{font-family:inherit;font-size:13px;}
     <div class="form-grid">
       <div class="form-field full"><div class="form-label">案件名 *</div><input type="text" id="fName" placeholder="例：特注フレーム製作"></div>
       <div class="form-field"><div class="form-label">工番</div><input type="text" id="fKoban" placeholder="例：24R085"></div>
+      <div class="form-field"><div class="form-label">刻印No.</div><input type="text" id="fStampNo" placeholder="例：1551"></div>
       <div class="form-field"><div class="form-label">品番</div><input type="text" id="fNum" placeholder="例：SP-001"></div>
       <div class="form-field"><div class="form-label">担当者</div><input type="text" id="fOwner" placeholder="例：田中"></div>
       <div class="form-field"><div class="form-label">開始日 *</div><input type="date" id="fStart"></div>
@@ -699,10 +700,10 @@ function init(){
         }
         dragState=null;
       }else{
-        /* it was a click — show bar editor */
-        const {taskId,subId}=dragState;
+        /* click without drag — open task modal */
+        const {taskId}=dragState;
         dragState=null;
-        showBarEditor(taskId,subId,e.clientX,e.clientY);
+        openModal(taskId);
       }
     }
   });
@@ -1123,6 +1124,7 @@ function openModal(id){
 function setFields(t){
   document.getElementById('fName').value=t.name;
   document.getElementById('fKoban').value=t.koban||'';
+  document.getElementById('fStampNo').value=t.stampNo||'';
   document.getElementById('fNum').value=t.num||'';
   document.getElementById('fOwner').value=t.owner||'';
   document.getElementById('fStart').value=t.start;
@@ -1145,7 +1147,7 @@ function setFields(t){
   }
 }
 function clearFields(){
-  ['fName','fKoban','fNum','fOwner','fNote'].forEach(id=>document.getElementById(id).value='');
+  ['fName','fKoban','fStampNo','fNum','fOwner','fNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fStart').value=new Date().toISOString().slice(0,10);
   document.getElementById('fEnd').value='';
   document.getElementById('fStatus').value='未着手';
@@ -1252,6 +1254,7 @@ function saveTask(){
   const d={
     name,
     koban:document.getElementById('fKoban').value.trim(),
+    stampNo:document.getElementById('fStampNo').value.trim(),
     num:document.getElementById('fNum').value.trim(),
     owner:document.getElementById('fOwner').value.trim(),
     start,end,
