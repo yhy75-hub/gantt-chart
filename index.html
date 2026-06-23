@@ -539,11 +539,6 @@ input,select{font-family:inherit;font-size:13px;}
     </div>
     <div><label>担当者</label><input type="text" id="spOwner" placeholder="例：田中"></div>
   </div>
-  <div class="sp-range-wrap">
-    <label>進捗率</label>
-    <input type="range" id="spProg" min="0" max="100" step="5" oninput="document.getElementById('spProgVal').textContent=this.value+'%'">
-    <span class="sp-range-val" id="spProgVal">0%</span>
-  </div>
   <div class="sp-row"><label>加工先</label>
     <div class="sp-kakou-wrap">
       <select id="spKakouSaki" onchange="onKakouSakiChange('spKakouSaki','spKakouSakiOther')">
@@ -584,12 +579,6 @@ input,select{font-family:inherit;font-size:13px;}
         <option value="未着手">未着手</option><option value="進行中">進行中</option>
         <option value="完了">完了</option><option value="遅延">遅延</option><option value="保留">保留</option>
       </select>
-    </div>
-    <div><label>進捗率</label>
-      <div style="display:flex;align-items:center;gap:6px;margin-top:5px;">
-        <input type="range" id="tpProg" min="0" max="100" step="5" style="flex:1" oninput="document.getElementById('tpProgVal').textContent=this.value+'%'">
-        <span id="tpProgVal" style="font-size:11px;font-weight:500;min-width:30px;text-align:right;color:#555">0%</span>
-      </div>
     </div>
   </div>
   <div class="sp-row"><label>加工先</label>
@@ -1103,7 +1092,7 @@ function renderTimeline(){
     bars+=`<div class="row-divider" style="top:${top+ROW}px"></div>`;
     const c=clip(barX(t.start),barW(t.start,t.end));
     if(c){
-      const lbl=esc(t.name)+(t.prog>0?' '+t.prog+'%':'');
+      const lbl=esc(t.name);
       bars+=`<div id="bar-${t.id}" class="gantt-bar bar-parent bar-${t.status}" style="left:${c.left}px;width:${c.width}px;top:${top+10}px" onclick="barClick(event,${t.id},'')" onmousedown="barDown(event,${t.id},'')" onmousemove="updateBarCursor(event,this)" onmouseleave="hideTip();this.style.cursor='grab'" onmouseenter="showTip(event,${t.id})">${lbl}</div>`;
     }
     top+=ROW;
@@ -1263,8 +1252,6 @@ function openSubPopup(taskId,subId,cx,cy){
   document.getElementById('spHint').textContent='親タスク範囲: '+t.start+' 〜 '+t.end;
   document.getElementById('spStatus').value=st.status||'未着手';
   document.getElementById('spOwner').value=st.owner||'';
-  document.getElementById('spProg').value=st.prog||0;
-  document.getElementById('spProgVal').textContent=(st.prog||0)+'%';
   document.getElementById('spNote').value=st.note||'';
 
   const ks=st.kakouSaki||'';
@@ -1312,7 +1299,6 @@ function saveSubPopup(){
   st.end=ce;
   st.status=document.getElementById('spStatus').value;
   st.owner=document.getElementById('spOwner').value.trim();
-  st.prog=parseInt(document.getElementById('spProg').value);
   st.note=document.getElementById('spNote').value.trim();
   st.kakouSaki=resolveKakouSaki('spKakouSaki','spKakouSakiOther');
 
@@ -1341,8 +1327,6 @@ function openTaskPopup(taskId,cx,cy){
   document.getElementById('tpStart').value=t.start;
   document.getElementById('tpEnd').value=t.end;
   document.getElementById('tpStatus').value=t.status;
-  document.getElementById('tpProg').value=t.prog||0;
-  document.getElementById('tpProgVal').textContent=(t.prog||0)+'%';
   document.getElementById('tpNote').value=t.note||'';
   const ks=t.kakouSaki||'';
   const known=['','吉田機工','タガミ・イーエクス'];
@@ -1382,7 +1366,6 @@ function saveTaskPopup(){
   t.owner=document.getElementById('tpOwner').value.trim();
   t.start=start;t.end=end;
   t.status=document.getElementById('tpStatus').value;
-  t.prog=parseInt(document.getElementById('tpProg').value);
   t.note=document.getElementById('tpNote').value.trim();
   t.kakouSaki=resolveKakouSaki('tpKakouSaki','tpKakouSakiOther');
   saveTasks();closeTaskPopup();
@@ -1854,7 +1837,7 @@ function showTip(e,id){
   document.getElementById('ttNum').textContent=t.num?'品番: '+t.num:'';
   document.getElementById('ttDates').textContent='期間: '+t.start+' 〜 '+t.end;
   document.getElementById('ttOwner').textContent=t.owner?'担当: '+t.owner:'';
-  document.getElementById('ttProg').textContent='ステータス: '+t.status+'  進捗: '+t.prog+'%';
+  document.getElementById('ttProg').textContent='ステータス: '+t.status;
   document.getElementById('ttKakou').textContent=t.kakouSaki?'加工先: '+t.kakouSaki:'';
   document.getElementById('ttNote').textContent=t.note?'備考: '+t.note:'';
 }
@@ -1868,7 +1851,7 @@ function showSubTip(e,pid,sid){
   document.getElementById('ttNum').textContent='親案件: '+t.name;
   document.getElementById('ttDates').textContent='期間: '+st.start+' 〜 '+st.end;
   document.getElementById('ttOwner').textContent=st.owner?'担当: '+st.owner:'';
-  document.getElementById('ttProg').textContent='ステータス: '+st.status+'  進捗: '+st.prog+'%';
+  document.getElementById('ttProg').textContent='ステータス: '+st.status;
   document.getElementById('ttKakou').textContent=st.kakouSaki?'加工先: '+st.kakouSaki:'';
   document.getElementById('ttNote').textContent=st.note?'備考: '+st.note:'';
 }
