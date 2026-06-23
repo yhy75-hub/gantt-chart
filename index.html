@@ -159,6 +159,31 @@ input,select{font-family:inherit;font-size:13px;}
 .be-save:hover{background:#333;}
 .be-cancel{font-size:12px;padding:4px 10px;}
 
+/* ─── サブタスク編集ポップアップ ─── */
+.st-popup{position:fixed;background:#fff;border-radius:12px;padding:16px;box-shadow:0 4px 24px rgba(0,0,0,0.14);z-index:150;width:300px;border:0.5px solid rgba(0,0,0,0.13);}
+.st-popup.hidden{display:none;}
+.st-popup-title{font-size:13px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:6px;color:#1a1a1a;}
+.st-popup-title i{color:#2DAA7A;font-size:15px;}
+.sp-row{display:flex;flex-direction:column;gap:3px;margin-bottom:9px;}
+.sp-row label{font-size:11px;color:#666;font-weight:500;}
+.sp-row input,.sp-row select{height:32px;border:0.5px solid rgba(0,0,0,0.22);border-radius:7px;padding:0 9px;font-size:12px;width:100%;outline:none;background:#fff;}
+.sp-row input:focus,.sp-row select:focus{border-color:#378ADD;box-shadow:0 0 0 2px rgba(55,138,221,0.14);}
+.sp-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:9px;}
+.sp-row-2 label{font-size:11px;color:#666;font-weight:500;display:block;margin-bottom:3px;}
+.sp-row-2 input,.sp-row-2 select{height:32px;border:0.5px solid rgba(0,0,0,0.22);border-radius:7px;padding:0 9px;font-size:12px;width:100%;outline:none;background:#fff;}
+.sp-range-wrap{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+.sp-range-wrap label{font-size:11px;color:#666;font-weight:500;white-space:nowrap;}
+.sp-range-wrap input{flex:1;}
+.sp-range-val{font-size:11px;font-weight:500;min-width:34px;text-align:right;color:#555;}
+.sp-hint{font-size:10px;color:#aaa;margin-bottom:10px;}
+.sp-kakou-wrap{display:flex;gap:6px;align-items:center;}
+.sp-kakou-wrap select{flex:1;}
+.sp-kakou-wrap input{flex:1;}
+.sp-foot{display:flex;justify-content:flex-end;gap:7px;padding-top:10px;border-top:0.5px solid rgba(0,0,0,0.07);}
+.sp-save{background:#1a1a1a;color:#fff;border-color:#1a1a1a;font-size:12px;padding:5px 14px;display:flex;align-items:center;gap:4px;}
+.sp-save:hover{background:#333;}
+.sp-cancel{font-size:12px;padding:5px 10px;}
+
 /* 加工先バッジ */
 .k-badge{display:inline-block;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:500;white-space:nowrap;}
 .k-yoshida{background:#e8f4fd;color:#1565c0;}
@@ -491,6 +516,50 @@ input,select{font-family:inherit;font-size:13px;}
   <div class="tt-row" id="ttNote"></div>
 </div>
 
+<!-- サブタスク編集ポップアップ -->
+<div class="st-popup hidden" id="stPopup" onclick="event.stopPropagation()">
+  <div class="st-popup-title"><i class="ti ti-tool"></i><span id="spTitle">工程を編集</span></div>
+  <div class="sp-row"><label>工程名</label><input type="text" id="spName"></div>
+  <div class="sp-row-2">
+    <div><label>開始日</label><input type="date" id="spStart"></div>
+    <div><label>終了日</label><input type="date" id="spEnd"></div>
+  </div>
+  <div class="sp-hint" id="spHint"></div>
+  <div class="sp-row-2">
+    <div><label>ステータス</label>
+      <select id="spStatus">
+        <option value="未着手">未着手</option>
+        <option value="進行中">進行中</option>
+        <option value="完了">完了</option>
+        <option value="遅延">遅延</option>
+        <option value="保留">保留</option>
+      </select>
+    </div>
+    <div><label>担当者</label><input type="text" id="spOwner" placeholder="例：田中"></div>
+  </div>
+  <div class="sp-range-wrap">
+    <label>進捗率</label>
+    <input type="range" id="spProg" min="0" max="100" step="5" oninput="document.getElementById('spProgVal').textContent=this.value+'%'">
+    <span class="sp-range-val" id="spProgVal">0%</span>
+  </div>
+  <div class="sp-row"><label>加工先</label>
+    <div class="sp-kakou-wrap">
+      <select id="spKakouSaki" onchange="onKakouSakiChange('spKakouSaki','spKakouSakiOther')">
+        <option value="">未設定</option>
+        <option value="吉田機工">吉田機工</option>
+        <option value="タガミ・イーエクス">タガミ・イーエクス</option>
+        <option value="その他">その他</option>
+      </select>
+      <input type="text" id="spKakouSakiOther" placeholder="加工先を入力" style="display:none;">
+    </div>
+  </div>
+  <div class="sp-row"><label>備考</label><input type="text" id="spNote" placeholder="備考など"></div>
+  <div class="sp-foot">
+    <button class="sp-cancel" onclick="closeSubPopup()">キャンセル</button>
+    <button class="sp-save" onclick="saveSubPopup()"><i class="ti ti-check"></i> 保存</button>
+  </div>
+</div>
+
 <!-- Bar editor popup -->
 <div class="bar-editor hidden" id="barEditor" onclick="event.stopPropagation()">
   <div class="be-title" id="beTitle"></div>
@@ -700,19 +769,25 @@ function init(){
         }
         dragState=null;
       }else{
-        /* click without drag — open task modal */
-        const {taskId}=dragState;
+        /* click without drag */
+        const {taskId,subId}=dragState;
         dragState=null;
-        openModal(taskId);
+        if(subId!==''){
+          openSubPopup(taskId,subId,e.clientX,e.clientY);
+        }else{
+          openModal(taskId);
+        }
       }
     }
   });
 
   document.addEventListener('click',e=>{
     if(pendingDelId!==null&&!e.target.closest('.confirm-del')){pendingDelId=null;renderList();}
-    /* close bar editor when clicking outside */
     if(!e.target.closest('#barEditor')){
       document.getElementById('barEditor').classList.add('hidden');
+    }
+    if(!e.target.closest('#stPopup')){
+      closeSubPopup();
     }
   });
 }
@@ -1099,6 +1174,89 @@ function saveBarEdit(){
 
 function cancelBarEdit(){
   document.getElementById('barEditor').classList.add('hidden');
+}
+
+/* ─── サブタスク編集ポップアップ ─── */
+let subPopupState=null;
+
+function openSubPopup(taskId,subId,cx,cy){
+  const t=tasks.find(x=>x.id===taskId);
+  if(!t)return;
+  const st=(t.subtasks||[]).find(x=>x.id===subId);
+  if(!st)return;
+  subPopupState={taskId,subId};
+
+  document.getElementById('spTitle').textContent=st.name||'工程を編集';
+  document.getElementById('spName').value=st.name||'';
+  document.getElementById('spStart').value=st.start||'';
+  document.getElementById('spEnd').value=st.end||'';
+  document.getElementById('spStart').min=t.start;
+  document.getElementById('spStart').max=t.end;
+  document.getElementById('spEnd').min=t.start;
+  document.getElementById('spEnd').max=t.end;
+  document.getElementById('spHint').textContent='親タスク範囲: '+t.start+' 〜 '+t.end;
+  document.getElementById('spStatus').value=st.status||'未着手';
+  document.getElementById('spOwner').value=st.owner||'';
+  document.getElementById('spProg').value=st.prog||0;
+  document.getElementById('spProgVal').textContent=(st.prog||0)+'%';
+  document.getElementById('spNote').value=st.note||'';
+
+  const ks=st.kakouSaki||'';
+  const known=['','吉田機工','タガミ・イーエクス'];
+  if(known.includes(ks)){
+    document.getElementById('spKakouSaki').value=ks;
+    document.getElementById('spKakouSakiOther').style.display='none';
+    document.getElementById('spKakouSakiOther').value='';
+  }else{
+    document.getElementById('spKakouSaki').value='その他';
+    document.getElementById('spKakouSakiOther').value=ks;
+    document.getElementById('spKakouSakiOther').style.display='block';
+  }
+
+  const pop=document.getElementById('stPopup');
+  pop.classList.remove('hidden');
+  const W=300,H=420;
+  let left=cx+10,top=cy+10;
+  if(left+W>window.innerWidth-8) left=cx-W-10;
+  if(top+H>window.innerHeight-8) top=cy-H-10;
+  pop.style.left=Math.max(4,left)+'px';
+  pop.style.top=Math.max(4,top)+'px';
+}
+
+function saveSubPopup(){
+  if(!subPopupState)return;
+  const name=document.getElementById('spName').value.trim();
+  const start=document.getElementById('spStart').value;
+  const end=document.getElementById('spEnd').value;
+  if(!name){document.getElementById('spName').focus();return;}
+  if(!start||!end){alert('開始日と終了日を入力してください');return;}
+  if(start>end){alert('終了日は開始日以降にしてください');return;}
+
+  const t=tasks.find(x=>x.id===subPopupState.taskId);
+  if(!t){closeSubPopup();return;}
+  const st=(t.subtasks||[]).find(x=>x.id===subPopupState.subId);
+  if(!st){closeSubPopup();return;}
+
+  /* 親範囲でクランプ */
+  const cs=start<t.start?t.start:start;
+  const ce=end>t.end?t.end:end;
+
+  st.name=name;
+  st.start=cs;
+  st.end=ce;
+  st.status=document.getElementById('spStatus').value;
+  st.owner=document.getElementById('spOwner').value.trim();
+  st.prog=parseInt(document.getElementById('spProg').value);
+  st.note=document.getElementById('spNote').value.trim();
+  st.kakouSaki=resolveKakouSaki('spKakouSaki','spKakouSakiOther');
+
+  saveTasks();
+  closeSubPopup();
+}
+
+function closeSubPopup(){
+  document.getElementById('stPopup').classList.add('hidden');
+  subPopupState=null;
 }
 
 /* ─── 案件モーダル ─── */
