@@ -911,6 +911,8 @@ function getDisplayTasks(){
   }
   if(currentTab==='machining'){
     list=list.filter(t=>t.subtasks&&t.subtasks.some(st=>st.name.includes('機械加工')));
+  } else {
+    list=list.filter(t=>!t.machiningOnly);
   }
   return list;
 }
@@ -1603,7 +1605,8 @@ function parseJaDate(str){
   if(!m) return null;
   const mon=parseInt(m[1]),day=parseInt(m[2]);
   if(mon<1||mon>12||day<1||day>31) return null;
-  const yr=mon>=10?2025:2026;
+  const now=new Date();
+  const yr=mon<now.getMonth()+1?now.getFullYear()+1:now.getFullYear();
   return `${yr}-${String(mon).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
 }
 
@@ -1706,7 +1709,7 @@ async function handleImportFile(file){
             if(!starts.length||!ends.length) continue;
             const s=starts[0],e=ends[ends.length-1];
             parentStarts.push(s); parentEnds.push(e);
-            subtasks.push({id:'s'+uniqueId(),name:partType,owner:'',start:s,end:e,status:'未着手',prog:0,kakouSaki,note:fullPnum});
+            subtasks.push({id:'s'+uniqueId(),name:'機械加工（'+partType+'）',owner:'',start:s,end:e,status:'未着手',prog:0,kakouSaki,note:fullPnum});
           }
         }else{
           const starts=rows.map(row=>parseJaDate(row.transportOut)).filter(Boolean).sort();
@@ -1714,7 +1717,7 @@ async function handleImportFile(file){
           if(!starts.length||!ends.length) continue;
           const s=starts[0],e=ends[ends.length-1];
           parentStarts.push(s); parentEnds.push(e);
-          subtasks.push({id:'s'+uniqueId(),name:partType,owner:'',start:s,end:e,status:'未着手',prog:0,kakouSaki,note:''});
+          subtasks.push({id:'s'+uniqueId(),name:'機械加工（'+partType+'）',owner:'',start:s,end:e,status:'未着手',prog:0,kakouSaki,note:''});
         }
       }
 
@@ -1742,7 +1745,8 @@ async function handleImportFile(file){
         note:'',
         kakouSaki:'',
         subtasks,
-        expanded:true
+        expanded:true,
+        machiningOnly:true
       });
     }
 
