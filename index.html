@@ -978,7 +978,7 @@ function renderList(){
       </div></div>
     </div>`;
     const stsToShow=currentTab==='machining'
-      ?(t.subtasks||[]).filter(st=>st.name.includes('機械加工'))
+      ?(t.expanded?(t.subtasks||[]).filter(st=>st.name.includes('機械加工')):[])
       :(t.expanded?(t.subtasks||[]):[]);
     if(stsToShow.length){
       stsToShow.forEach(st=>{
@@ -1022,7 +1022,7 @@ function requestDel(e,id){
 }
 function confirmDel(e,id){
   e.stopPropagation();
-  tasks=tasks.filter(t=>t.id!==id);pendingDelId=null;saveTasks();
+  tasks=tasks.filter(t=>t.id!==id);pendingDelId=null;saveTasks();render();
 }
 
 /* ─── TIMELINE ─── */
@@ -1107,7 +1107,7 @@ function renderTimeline(){
     top+=ROW;
 
     const subsToShow=currentTab==='machining'
-      ?(t.subtasks||[]).filter(st=>st.name.includes('機械加工'))
+      ?(t.expanded?(t.subtasks||[]).filter(st=>st.name.includes('機械加工')):[])
       :(t.expanded?(t.subtasks||[]):[]);
 
     subsToShow.forEach(st=>{
