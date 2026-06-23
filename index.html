@@ -63,7 +63,7 @@ input,select{font-family:inherit;font-size:13px;}
 
 /* table header */
 .t-head{position:sticky;top:0;background:#eeede8;z-index:3;border-bottom:0.5px solid rgba(0,0,0,0.12);}
-.t-head-row{display:grid;grid-template-columns:28px 1fr 72px 68px 56px 52px;align-items:center;height:52px;}
+.t-head-row{display:grid;grid-template-columns:28px minmax(0,1fr) 72px 68px 72px 52px;align-items:center;height:52px;}
 .t-cell{padding:5px 6px;font-size:11px;color:#666;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
 /* task row */
@@ -114,7 +114,7 @@ input,select{font-family:inherit;font-size:13px;}
 .empty-state i{font-size:36px;display:block;margin-bottom:8px;opacity:0.3;}
 
 /* ─── timeline ─── */
-.timeline-head{position:sticky;top:0;background:#eeede8;z-index:2;border-bottom:0.5px solid rgba(0,0,0,0.1);}
+.timeline-head{position:sticky;top:0;background:#eeede8;z-index:10;border-bottom:0.5px solid rgba(0,0,0,0.1);}
 .month-row{display:flex;height:26px;border-bottom:0.5px solid rgba(0,0,0,0.07);}
 .month-label{padding:0 8px;font-size:11px;font-weight:500;color:#555;display:flex;align-items:center;border-right:0.5px solid rgba(0,0,0,0.07);white-space:nowrap;flex-shrink:0;}
 .day-row{display:flex;height:26px;}
@@ -363,7 +363,7 @@ input,select{font-family:inherit;font-size:13px;}
           <div class="t-cell">案件名 / 品番</div>
           <div class="t-cell">ステータス</div>
           <div class="t-cell">担当者</div>
-          <div class="t-cell">進捗</div>
+          <div class="t-cell">刻印No.</div>
           <div class="t-cell"></div>
         </div>
       </div>
@@ -401,12 +401,6 @@ input,select{font-family:inherit;font-size:13px;}
           <option value="保留">保留</option>
         </select>
       </div>
-      <div class="form-field"><div class="form-label">進捗率</div>
-        <div class="range-wrap">
-          <input type="range" id="fProg" min="0" max="100" step="5" value="0">
-          <span class="range-val" id="fProgVal">0%</span>
-        </div>
-      </div>
       <div class="form-field full"><div class="form-label">加工先</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <select id="fKakouSaki" style="flex:1;" onchange="onKakouSakiChange('fKakouSaki','fKakouSakiOther')">
@@ -439,6 +433,14 @@ input,select{font-family:inherit;font-size:13px;}
             </select>
             <input type="text" id="stKakouSakiOther" placeholder="加工先を入力" style="flex:1;display:none;">
             <input type="text" id="stNote" placeholder="備考" style="flex:1;">
+          </div>
+          <div class="kakou-inline">
+            <select id="stKobanMode" style="flex:1;" onchange="document.getElementById('stKoban').style.display=this.value==='custom'?'block':'none'">
+              <option value="inherit">工番：親タスク引継ぎ</option>
+              <option value="custom">工番：別途入力</option>
+            </select>
+            <input type="text" id="stKoban" placeholder="工番を入力" style="flex:1;display:none;">
+            <input type="text" id="stStampNo" placeholder="刻印No." style="flex:1;">
           </div>
         </div>
         <button id="addSubBtn" style="white-space:nowrap;padding:5px 10px;font-size:12px;align-self:flex-end;"><i class="ti ti-plus"></i> 追加</button>
@@ -711,7 +713,6 @@ function init(){
   document.getElementById('prevM').onclick=()=>{viewStart.setMonth(viewStart.getMonth()-1);render();};
   document.getElementById('nextM').onclick=()=>{viewStart.setMonth(viewStart.getMonth()+1);render();};
   document.getElementById('todayBtn').onclick=()=>{viewStart=new Date();viewStart.setDate(1);render();setTimeout(scrollToToday,80);};
-  document.getElementById('fProg').oninput=function(){document.getElementById('fProgVal').textContent=this.value+'%';};
   document.getElementById('calBtn').onclick=openCalModal;
   document.getElementById('closeCal').onclick=closeCalModal;
   document.getElementById('calModal').onclick=e=>{if(e.target.id==='calModal')closeCalModal();};
@@ -970,7 +971,7 @@ function renderList(){
       </div>
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer"><span class="badge badge-${t.status}">${t.status}</span></div>
       <div class="t-cell" onclick="openModal(${t.id})" style="font-size:11px;color:#888;cursor:pointer">${esc(t.owner||'—')}</div>
-      <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer"><div class="prog-wrap"><div class="prog-bar" style="width:${t.prog}%"></div></div></div>
+      <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer;font-size:11px;color:#555">${esc(t.stampNo||'—')}</div>
       <div class="t-cell"><div class="row-actions">
         ${isPendingDel
           ?`<button class="act-btn del confirm-del" onclick="confirmDel(event,${t.id})">削除確認</button>`
@@ -997,7 +998,7 @@ function renderList(){
           </div>
           <div class="t-cell"><span class="badge badge-${st.status}" style="font-size:9px">${st.status}</span></div>
           <div class="t-cell" style="font-size:10px;color:#aaa">${esc(st.owner||'—')}</div>
-          <div class="t-cell"><div class="prog-wrap"><div class="prog-bar" style="width:${st.prog}%"></div></div></div>
+          <div class="t-cell" style="font-size:10px;color:#777">${esc(st.koban||(t.koban?t.koban+'(引継)':'—'))}</div>
           <div class="t-cell"></div>
         </div>`;
       });
@@ -1050,10 +1051,11 @@ function renderTimeline(){
   });
   const mRow=Object.values(months).map(m=>`<div class="month-label" style="width:${m.count*DAY_W}px">${m.label}</div>`).join('');
 
+  const toLocal=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const dRow=days.map(d=>{
     const isToday=d.getTime()===today.getTime();
     const dow=d.getDay();
-    const ds=d.toISOString().slice(0,10);
+    const ds=toLocal(d);
     const isHol=hs.has(ds);
     let cls='day-cell';
     if(isToday) cls+=' today';
@@ -1074,7 +1076,7 @@ function renderTimeline(){
   let colBgs='';
   days.forEach((d,i)=>{
     const dow=d.getDay();
-    const ds=d.toISOString().slice(0,10);
+    const ds=toLocal(d);
     const isHol=hs.has(ds);
     if(dow===6) colBgs+=`<div class="col-bg col-sat" style="left:${i*DAY_W}px;width:${DAY_W}px"></div>`;
     else if(dow===0||isHol) colBgs+=`<div class="col-bg col-sun" style="left:${i*DAY_W}px;width:${DAY_W}px"></div>`;
@@ -1420,8 +1422,6 @@ function setFields(t){
   document.getElementById('fStart').value=t.start;
   document.getElementById('fEnd').value=t.end;
   document.getElementById('fStatus').value=t.status;
-  document.getElementById('fProg').value=t.prog;
-  document.getElementById('fProgVal').textContent=t.prog+'%';
   document.getElementById('fNote').value=t.note||'';
   /* 加工先 */
   const ks=t.kakouSaki||'';
@@ -1441,8 +1441,6 @@ function clearFields(){
   document.getElementById('fStart').value=new Date().toISOString().slice(0,10);
   document.getElementById('fEnd').value='';
   document.getElementById('fStatus').value='未着手';
-  document.getElementById('fProg').value=0;
-  document.getElementById('fProgVal').textContent='0%';
   document.getElementById('fKakouSaki').value='';
   document.getElementById('fKakouSakiOther').value='';
   document.getElementById('fKakouSakiOther').style.display='none';
@@ -1463,10 +1461,11 @@ function renderSubtaskList(){
           <select id="se-status">
             ${['未着手','進行中','完了','遅延','保留'].map(s=>`<option value="${s}"${st.status===s?' selected':''}>${s}</option>`).join('')}
           </select>
-          <div style="display:flex;align-items:center;gap:6px">
-            <input type="range" id="se-prog" min="0" max="100" step="5" value="${st.prog}" oninput="document.getElementById('se-prog-val').textContent=this.value+'%'" style="flex:1">
-            <span id="se-prog-val" style="font-size:11px;font-weight:500;min-width:32px;text-align:right">${st.prog}%</span>
-          </div>
+          <select id="se-koban-mode" onchange="document.getElementById('se-koban').style.display=this.value==='custom'?'block':'none'">
+            <option value="inherit"${!st.koban?' selected':''}>工番：親タスク引継ぎ</option>
+            <option value="custom"${st.koban?' selected':''}>工番：別途入力</option>
+          </select>
+          <input type="text" id="se-koban" placeholder="工番" value="${esc(st.koban||'')}" style="display:${st.koban?'block':'none'}">
         </div>
         <div class="st-edit-row3">
           <select id="se-kakou" onchange="onKakouSakiChange('se-kakou','se-kakou-other')">
@@ -1478,6 +1477,9 @@ function renderSubtaskList(){
           <input type="text" id="se-kakou-other" placeholder="加工先" value="${(st.kakouSaki&&st.kakouSaki!=='吉田機工'&&st.kakouSaki!=='タガミ・イーエクス')?esc(st.kakouSaki):''}" style="display:${(st.kakouSaki&&st.kakouSaki!=='吉田機工'&&st.kakouSaki!=='タガミ・イーエクス')?'block':'none'}">
           <input type="text" id="se-note" placeholder="備考" value="${esc(st.note||'')}">
         </div>
+        <div class="st-edit-row3">
+          <input type="text" id="se-stamp" placeholder="刻印No." value="${esc(st.stampNo||'')}" style="flex:1;">
+        </div>
         <div class="st-edit-actions">
           <button onclick="cancelEditSub()">キャンセル</button>
           <button class="st-save-btn" onclick="saveEditSub(${i})"><i class="ti ti-check"></i> 保存</button>
@@ -1486,10 +1488,14 @@ function renderSubtaskList(){
     }
     const isMachining=st.name.includes('機械加工');
     const stKBadge=kakouBadgeHtml(st.kakouSaki);
+    const parentKoban=document.getElementById('fKoban').value.trim();
+    const dispKoban=st.koban||(parentKoban?parentKoban+'(引継)':'');
     return `<div class="st-item${isMachining?' machining-item':''}">
       ${isMachining?'<i class="ti ti-tool" style="color:#2DAA7A;font-size:13px;flex-shrink:0"></i>':''}
       <div class="st-item-name">${esc(st.name)}${stKBadge?' '+stKBadge:''}</div>
       <div class="st-item-info">${st.start} 〜 ${st.end}</div>
+      ${dispKoban?`<span class="st-note">工番: ${esc(dispKoban)}</span>`:''}
+      ${st.stampNo?`<span class="st-note">刻印: ${esc(st.stampNo)}</span>`:''}
       ${st.note?`<span class="st-note">${esc(st.note)}</span>`:''}
       <span class="badge badge-${st.status}" style="font-size:9px">${st.status}</span>
       <button class="st-item-edit-btn" onclick="startEditSub(${i})" title="編集"><i class="ti ti-pencil"></i></button>
@@ -1509,7 +1515,10 @@ function saveEditSub(i){
   const kakouVal=document.getElementById('se-kakou').value;
   const kakouSaki=kakouVal==='その他'?(document.getElementById('se-kakou-other').value.trim()||'その他'):kakouVal;
   const note=document.getElementById('se-note').value.trim();
-  editSubtasks[i]={...editSubtasks[i],name,start,end,status:document.getElementById('se-status').value,prog:parseInt(document.getElementById('se-prog').value),kakouSaki,note};
+  const kobanMode=document.getElementById('se-koban-mode').value;
+  const koban=kobanMode==='custom'?document.getElementById('se-koban').value.trim():'';
+  const stampNo=document.getElementById('se-stamp').value.trim();
+  editSubtasks[i]={...editSubtasks[i],name,start,end,status:document.getElementById('se-status').value,prog:0,kakouSaki,note,koban,stampNo};
   editingSubIdx=-1;renderSubtaskList();
 }
 function addSubtaskRow(){
@@ -1520,7 +1529,10 @@ function addSubtaskRow(){
   if(start>end){alert('終了日は開始日以降にしてください');return;}
   const kakouSaki=resolveKakouSaki('stKakouSaki','stKakouSakiOther');
   const note=document.getElementById('stNote').value.trim();
-  editSubtasks.push({id:'s'+Date.now(),name,owner:'',start,end,status:'未着手',prog:0,kakouSaki,note});
+  const kobanMode=document.getElementById('stKobanMode').value;
+  const koban=kobanMode==='custom'?document.getElementById('stKoban').value.trim():'';
+  const stampNo=document.getElementById('stStampNo').value.trim();
+  editSubtasks.push({id:'s'+Date.now(),name,owner:'',start,end,status:'未着手',prog:0,kakouSaki,note,koban,stampNo});
   document.getElementById('stName').value='';
   document.getElementById('stStart').value='';
   document.getElementById('stEnd').value='';
@@ -1528,6 +1540,10 @@ function addSubtaskRow(){
   document.getElementById('stKakouSakiOther').value='';
   document.getElementById('stKakouSakiOther').style.display='none';
   document.getElementById('stNote').value='';
+  document.getElementById('stKobanMode').value='inherit';
+  document.getElementById('stKoban').value='';
+  document.getElementById('stKoban').style.display='none';
+  document.getElementById('stStampNo').value='';
   renderSubtaskList();
   document.getElementById('stName').focus();
 }
@@ -1549,7 +1565,7 @@ function saveTask(){
     owner:document.getElementById('fOwner').value.trim(),
     start,end,
     status:document.getElementById('fStatus').value,
-    prog:parseInt(document.getElementById('fProg').value),
+    prog:0,
     note:document.getElementById('fNote').value.trim(),
     kakouSaki,
     subtasks:editSubtasks
