@@ -1238,6 +1238,7 @@ function cancelBarEdit(){
 let subPopupState=null;
 
 function openSubPopup(taskId,subId,cx,cy){
+  closeTaskPopup();
   const t=tasks.find(x=>x.id===taskId);
   if(!t)return;
   const st=(t.subtasks||[]).find(x=>x.id===subId);
@@ -1321,6 +1322,7 @@ function closeSubPopup(){
 let taskPopupState=null;
 
 function openTaskPopup(taskId,cx,cy){
+  closeSubPopup();
   const t=tasks.find(x=>x.id===taskId);if(!t)return;
   taskPopupState={taskId};
   document.getElementById('tpTitle').textContent=t.name;
