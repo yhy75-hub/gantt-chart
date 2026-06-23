@@ -133,7 +133,8 @@ input,select{font-family:inherit;font-size:13px;}
 .col-sun{background:rgba(255,192,203,0.25);}
 
 /* gantt bars */
-.gantt-bar{position:absolute;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;z-index:2;}
+.gantt-bar{position:absolute;border-radius:4px;display:flex;align-items:center;padding:0 6px;font-size:10px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2;cursor:grab;user-select:none;}
+.gantt-bar:active{cursor:grabbing;}
 .gantt-bar:hover{filter:brightness(0.9);}
 .bar-parent{height:20px;}
 .bar-sub{height:14px;opacity:0.85;}
@@ -143,6 +144,29 @@ input,select{font-family:inherit;font-size:13px;}
 .bar-遅延{background:#E24B4A;color:#fff;}
 .bar-保留{background:#EF9F27;color:#412402;}
 .bar-機械加工{background:#2DAA7A;color:#fff;}
+
+/* ─── Bar editor popup ─── */
+.bar-editor{position:fixed;background:#fff;border-radius:10px;padding:14px 16px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:150;width:230px;border:0.5px solid rgba(0,0,0,0.14);}
+.bar-editor.hidden{display:none;}
+.be-title{font-size:12px;font-weight:600;margin-bottom:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.be-row{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;}
+.be-row label{font-size:11px;color:#666;font-weight:500;}
+.be-row input{height:32px;border:0.5px solid rgba(0,0,0,0.22);border-radius:7px;padding:0 8px;font-size:12px;width:100%;outline:none;}
+.be-row input:focus{border-color:#378ADD;}
+.be-hint{font-size:10px;color:#aaa;margin-bottom:8px;}
+.be-foot{display:flex;justify-content:flex-end;gap:6px;}
+.be-save{background:#1a1a1a;color:#fff;border-color:#1a1a1a;font-size:12px;padding:4px 12px;}
+.be-save:hover{background:#333;}
+.be-cancel{font-size:12px;padding:4px 10px;}
+
+/* 加工先バッジ */
+.k-badge{display:inline-block;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:500;white-space:nowrap;}
+.k-yoshida{background:#e8f4fd;color:#1565c0;}
+.k-tagami{background:#fff3e0;color:#e65100;}
+.k-other{background:#f3e5f5;color:#6a1b9a;}
+
+/* Subtask note */
+.st-note{font-size:10px;color:#aaa;font-style:italic;}
 
 /* ─── 案件モーダル ─── */
 .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.36);display:flex;align-items:center;justify-content:center;z-index:100;}
@@ -176,6 +200,7 @@ input,select{font-family:inherit;font-size:13px;}
 .st-edit-form{background:#f0f4fa;border-radius:6px;padding:10px;border:0.5px solid rgba(55,138,221,0.25);display:flex;flex-direction:column;gap:8px;}
 .st-edit-row{display:grid;grid-template-columns:1fr 88px 88px;gap:8px;}
 .st-edit-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.st-edit-row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
 .st-edit-form input,.st-edit-form select{height:30px;border:0.5px solid rgba(0,0,0,0.22);border-radius:6px;padding:0 8px;font-size:12px;background:#fff;color:#1a1a1a;width:100%;outline:none;}
 .st-edit-form input:focus,.st-edit-form select:focus{border-color:#378ADD;box-shadow:0 0 0 2px rgba(55,138,221,0.14);}
 .st-edit-actions{display:flex;justify-content:flex-end;gap:6px;}
@@ -184,6 +209,8 @@ input,select{font-family:inherit;font-size:13px;}
 .st-save-btn:hover{background:#333;}
 .st-add-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;}
 .st-add-fields{display:grid;grid-template-columns:1fr 90px 90px;gap:8px;}
+.kakou-inline{display:flex;align-items:center;gap:6px;}
+.kakou-inline select,.kakou-inline input{height:30px;border:0.5px solid rgba(0,0,0,0.22);border-radius:6px;padding:0 8px;font-size:12px;background:#fff;color:#1a1a1a;outline:none;}
 
 /* ─── 休日設定モーダル ─── */
 #calModal .modal-box{width:560px;}
@@ -212,7 +239,7 @@ input,select{font-family:inherit;font-size:13px;}
 .save-cal-btn:hover{background:#333;}
 
 /* ─── インポート確認モーダル ─── */
-#importModal .modal-box{width:560px;max-height:80vh;}
+#importModal .modal-box{width:580px;max-height:80vh;}
 .import-preview{max-height:320px;overflow-y:auto;margin:12px 0;border:0.5px solid rgba(0,0,0,0.1);border-radius:8px;}
 .import-preview table{width:100%;border-collapse:collapse;font-size:11px;}
 .import-preview th{background:#eeede8;padding:5px 8px;text-align:left;border-bottom:0.5px solid rgba(0,0,0,0.1);position:sticky;top:0;font-weight:500;color:#555;}
@@ -354,18 +381,41 @@ input,select{font-family:inherit;font-size:13px;}
           <span class="range-val" id="fProgVal">0%</span>
         </div>
       </div>
-      <div class="form-field full"><div class="form-label">メモ</div><input type="text" id="fNote" placeholder="備考など"></div>
+      <div class="form-field full"><div class="form-label">加工先</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <select id="fKakouSaki" style="flex:1;" onchange="onKakouSakiChange('fKakouSaki','fKakouSakiOther')">
+            <option value="">未設定</option>
+            <option value="吉田機工">吉田機工</option>
+            <option value="タガミ・イーエクス">タガミ・イーエクス</option>
+            <option value="その他">その他</option>
+          </select>
+          <input type="text" id="fKakouSakiOther" placeholder="加工先を入力" style="flex:1;display:none;">
+        </div>
+      </div>
+      <div class="form-field full"><div class="form-label">備考</div><input type="text" id="fNote" placeholder="備考など"></div>
     </div>
     <div class="modal-section" id="subtaskSection">
       <div class="modal-section-title"><i class="ti ti-subtask" aria-hidden="true"></i>サブタスク（工程）</div>
       <div class="subtask-list" id="subtaskList"></div>
       <div class="st-add-row">
-        <div class="st-add-fields">
-          <input type="text" id="stName" placeholder="工程名（例：機械加工）">
-          <input type="date" id="stStart">
-          <input type="date" id="stEnd">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div class="st-add-fields">
+            <input type="text" id="stName" placeholder="工程名（例：機械加工）">
+            <input type="date" id="stStart">
+            <input type="date" id="stEnd">
+          </div>
+          <div class="kakou-inline">
+            <select id="stKakouSaki" style="flex:1;" onchange="onKakouSakiChange('stKakouSaki','stKakouSakiOther')">
+              <option value="">加工先（未設定）</option>
+              <option value="吉田機工">吉田機工</option>
+              <option value="タガミ・イーエクス">タガミ・イーエクス</option>
+              <option value="その他">その他</option>
+            </select>
+            <input type="text" id="stKakouSakiOther" placeholder="加工先を入力" style="flex:1;display:none;">
+            <input type="text" id="stNote" placeholder="備考" style="flex:1;">
+          </div>
         </div>
-        <button id="addSubBtn" style="white-space:nowrap;padding:5px 10px;font-size:12px;"><i class="ti ti-plus"></i> 追加</button>
+        <button id="addSubBtn" style="white-space:nowrap;padding:5px 10px;font-size:12px;align-self:flex-end;"><i class="ti ti-plus"></i> 追加</button>
       </div>
     </div>
     <div class="modal-footer">
@@ -436,7 +486,20 @@ input,select{font-family:inherit;font-size:13px;}
   <div class="tt-row" id="ttDates"></div>
   <div class="tt-row" id="ttOwner"></div>
   <div class="tt-row" id="ttProg"></div>
+  <div class="tt-row" id="ttKakou"></div>
   <div class="tt-row" id="ttNote"></div>
+</div>
+
+<!-- Bar editor popup -->
+<div class="bar-editor hidden" id="barEditor" onclick="event.stopPropagation()">
+  <div class="be-title" id="beTitle"></div>
+  <div class="be-row"><label>開始日</label><input type="date" id="beStart"></div>
+  <div class="be-row"><label>終了日</label><input type="date" id="beEnd"></div>
+  <div class="be-hint" id="beHint"></div>
+  <div class="be-foot">
+    <button class="be-cancel" onclick="cancelBarEdit()">キャンセル</button>
+    <button class="be-save" onclick="saveBarEdit()"><i class="ti ti-check"></i> 保存</button>
+  </div>
 </div>
 
 <script>
@@ -459,13 +522,42 @@ const DAY_W=28;
 let tasks=[], holidays=[], viewStart=new Date(), editId=null, syncing=false, pendingDelId=null;
 let editSubtasks=[], editingSubIdx=-1;
 let loadedCount=0;
-let currentTab='main'; // 'main' | 'machining'
+let currentTab='main';
 let filterText='';
 let importPendingTasks=[];
+let dragState=null;
+let barEditorState={taskId:null,subId:null};
 
 /* 展開状態はブラウザごとにローカル保持 */
 let expandedIds=new Set(JSON.parse(localStorage.getItem('gantt_expanded')||'[]'));
 function saveExpanded(){localStorage.setItem('gantt_expanded',JSON.stringify([...expandedIds]));}
+
+/* ─── ヘルパー関数 ─── */
+function getKakouClass(v){
+  if(!v) return '';
+  if(v==='吉田機工') return 'k-yoshida';
+  if(v.includes('タガミ')) return 'k-tagami';
+  return 'k-other';
+}
+
+function addDays(ds,n){
+  const d=new Date(ds); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10);
+}
+
+function daysBetween(s,e){
+  return Math.round((new Date(e)-new Date(s))/86400000);
+}
+
+function resolveKakouSaki(selectId,otherId){
+  const v=document.getElementById(selectId).value;
+  if(v==='その他') return document.getElementById(otherId).value.trim()||'その他';
+  return v;
+}
+
+function onKakouSakiChange(selectId,otherId){
+  const v=document.getElementById(selectId).value;
+  document.getElementById(otherId).style.display=v==='その他'?'block':'none';
+}
 
 /* ─── INIT ─── */
 function init(){
@@ -538,12 +630,89 @@ function init(){
   const L=document.getElementById('gLeft'),R=document.getElementById('gRight');
   L.addEventListener('scroll',()=>{if(syncing)return;syncing=true;R.scrollTop=L.scrollTop;syncing=false;});
   R.addEventListener('scroll',()=>{if(syncing)return;syncing=true;L.scrollTop=R.scrollTop;syncing=false;});
+
   document.addEventListener('mousemove',e=>{
+    /* tooltip follow */
     const tip=document.getElementById('tip');
-    if(!tip.classList.contains('hidden')){tip.style.left=Math.min(e.clientX+14,window.innerWidth-290)+'px';tip.style.top=Math.min(e.clientY+14,window.innerHeight-150)+'px';}
+    if(!tip.classList.contains('hidden')){
+      tip.style.left=Math.min(e.clientX+14,window.innerWidth-290)+'px';
+      tip.style.top=Math.min(e.clientY+14,window.innerHeight-150)+'px';
+    }
+    /* drag handling */
+    if(dragState){
+      const dx=e.clientX-dragState.startX;
+      const daysDelta=Math.round(dx/DAY_W);
+      if(Math.abs(dx)>5) dragState.moved=true;
+      if(daysDelta!==dragState.lastDelta){
+        dragState.lastDelta=daysDelta;
+        let newStart=addDays(dragState.origStart,daysDelta);
+        let newEnd=addDays(dragState.origEnd,daysDelta);
+        if(dragState.subId!==''){
+          /* clamp to parent */
+          if(newStart<dragState.parentStart){
+            const shift=daysBetween(newStart,dragState.parentStart);
+            newStart=addDays(newStart,shift);
+            newEnd=addDays(newEnd,shift);
+          }
+          if(newEnd>dragState.parentEnd){
+            const shift=daysBetween(dragState.parentEnd,newEnd);
+            newStart=addDays(newStart,-shift);
+            newEnd=addDays(newEnd,-shift);
+          }
+        }
+        dragState.previewStart=newStart;
+        dragState.previewEnd=newEnd;
+        /* update bar DOM directly */
+        const days=getDays();
+        const vs=days[0];
+        function bx(ds){return Math.round((new Date(ds).setHours(0,0,0,0)-vs.getTime())/86400000);}
+        function bw(s,en){return Math.max(1,bx(en)-bx(s)+1);}
+        const si=bx(newStart),wi=bw(newStart,newEnd);
+        const ei=si+wi;
+        const cs=Math.max(0,si),ce=Math.min(days.length,ei);
+        if(ce>cs&&dragState.el){
+          dragState.el.style.left=(cs*DAY_W)+'px';
+          dragState.el.style.width=((ce-cs)*DAY_W)+'px';
+        }
+      }
+    }
   });
+
+  document.addEventListener('mouseup',e=>{
+    if(dragState){
+      hideTip();
+      if(dragState.moved){
+        /* save new dates */
+        const t=tasks.find(x=>x.id===dragState.taskId);
+        if(t){
+          if(dragState.subId===''){
+            t.start=dragState.previewStart||dragState.origStart;
+            t.end=dragState.previewEnd||dragState.origEnd;
+          }else{
+            const st=(t.subtasks||[]).find(x=>x.id===dragState.subId);
+            if(st){
+              st.start=dragState.previewStart||dragState.origStart;
+              st.end=dragState.previewEnd||dragState.origEnd;
+            }
+          }
+          saveTasks();
+        }
+        dragState=null;
+      }else{
+        /* it was a click — show bar editor */
+        const {taskId,subId}=dragState;
+        dragState=null;
+        showBarEditor(taskId,subId,e.clientX,e.clientY);
+      }
+    }
+  });
+
   document.addEventListener('click',e=>{
     if(pendingDelId!==null&&!e.target.closest('.confirm-del')){pendingDelId=null;renderList();}
+    /* close bar editor when clicking outside */
+    if(!e.target.closest('#barEditor')){
+      document.getElementById('barEditor').classList.add('hidden');
+    }
   });
 }
 
@@ -561,15 +730,16 @@ function loadSampleData(){
   const t=new Date(),fmt=d=>d.toISOString().slice(0,10);
   const add=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
   const sample=[
-    {id:Date.now()+1,name:'特注フレーム製作',koban:'24R001',num:'SP-001',owner:'田中',start:fmt(add(t,-5)),end:fmt(add(t,20)),status:'進行中',prog:35,note:'材料調達済み',subtasks:[
-      {id:'s11',name:'材料調達',owner:'田中',start:fmt(add(t,-5)),end:fmt(add(t,0)),status:'完了',prog:100},
-      {id:'s12',name:'機械加工',owner:'田中',start:fmt(add(t,1)),end:fmt(add(t,12)),status:'進行中',prog:40},
-      {id:'s13',name:'仕上げ・検査',owner:'田中',start:fmt(add(t,13)),end:fmt(add(t,20)),status:'未着手',prog:0},
+    {id:Date.now()+1,name:'GD955',koban:'24R001',num:'GD955',owner:'田中',start:fmt(add(t,-5)),end:fmt(add(t,20)),status:'進行中',prog:35,note:'',kakouSaki:'吉田機工',subtasks:[
+      {id:'s11',name:'アジャスター',owner:'田中',start:fmt(add(t,-5)),end:fmt(add(t,0)),status:'完了',prog:100,kakouSaki:'吉田機工',note:''},
+      {id:'s12',name:'サークル',owner:'田中',start:fmt(add(t,1)),end:fmt(add(t,12)),status:'進行中',prog:40,kakouSaki:'タガミ・イーエクス',note:''},
+      {id:'s13',name:'ブレード',owner:'田中',start:fmt(add(t,13)),end:fmt(add(t,20)),status:'未着手',prog:0,kakouSaki:'吉田機工',note:'品番: 8234001'},
     ]},
-    {id:Date.now()+2,name:'カバー板金加工',koban:'24R002',num:'SP-002',owner:'鈴木',start:fmt(add(t,3)),end:fmt(add(t,30)),status:'未着手',prog:0,note:'',subtasks:[
-      {id:'s21',name:'機械加工',owner:'鈴木',start:fmt(add(t,3)),end:fmt(add(t,18)),status:'未着手',prog:0},
+    {id:Date.now()+2,name:'K56',koban:'24R002',num:'K56',owner:'鈴木',start:fmt(add(t,3)),end:fmt(add(t,30)),status:'未着手',prog:0,note:'',kakouSaki:'吉田機工',subtasks:[
+      {id:'s21',name:'アジャスター',owner:'鈴木',start:fmt(add(t,3)),end:fmt(add(t,18)),status:'未着手',prog:0,kakouSaki:'吉田機工',note:''},
+      {id:'s22',name:'サークル',owner:'鈴木',start:fmt(add(t,5)),end:fmt(add(t,28)),status:'未着手',prog:0,kakouSaki:'タガミ・イーエクス',note:''},
     ]},
-    {id:Date.now()+3,name:'特殊ネジ調達・組付け',koban:'',num:'SP-003',owner:'佐藤',start:fmt(add(t,-15)),end:fmt(add(t,5)),status:'遅延',prog:60,note:'仕入れ先要確認',subtasks:[]},
+    {id:Date.now()+3,name:'特殊機',koban:'',num:'特殊機',owner:'佐藤',start:fmt(add(t,-15)),end:fmt(add(t,5)),status:'遅延',prog:60,note:'仕入れ先要確認',kakouSaki:'',subtasks:[]},
   ];
   const obj={};
   sample.forEach((t,i)=>{obj[String(t.id)]={...t,_order:i};});
@@ -616,7 +786,6 @@ function clearFilter(){
 
 function getDisplayTasks(){
   let list=tasks;
-  /* フィルター */
   if(filterText){
     const q=filterText.toLowerCase();
     list=list.filter(t=>
@@ -625,7 +794,6 @@ function getDisplayTasks(){
       (t.koban||'').toLowerCase().includes(q)
     );
   }
-  /* 機械加工タブ */
   if(currentTab==='machining'){
     list=list.filter(t=>t.subtasks&&t.subtasks.some(st=>st.name.includes('機械加工')));
   }
@@ -655,6 +823,12 @@ function renderSummary(){
   document.getElementById('s-ove').textContent=ove;
 }
 
+function kakouBadgeHtml(v){
+  if(!v) return '';
+  const cls=getKakouClass(v);
+  return `<span class="k-badge ${cls}">${esc(v)}</span>`;
+}
+
 function renderList(){
   const c=document.getElementById('taskRows');
   const list=getDisplayTasks();
@@ -667,6 +841,7 @@ function renderList(){
     const hasSub=t.subtasks&&t.subtasks.length>0;
     const isPendingDel=pendingDelId===t.id;
     const kobanTxt=t.koban?`<span style="color:#5B89C8;margin-left:4px;">工番: ${esc(t.koban)}</span>`:'';
+    const kBadge=kakouBadgeHtml(t.kakouSaki);
     html+=`<div class="t-row" data-id="${t.id}">
       <div class="t-cell" style="padding:0 4px;">
         ${hasSub?`<button class="expand-btn ${t.expanded?'open':''}" onclick="toggleExpand(event,${t.id})"><i class="ti ti-chevron-right"></i></button>`:'<span style="width:20px;display:inline-block"></span>'}
@@ -674,6 +849,7 @@ function renderList(){
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer;">
         <div class="task-name">${esc(t.name)}</div>
         <div class="task-num">${esc(t.num||'—')}${kobanTxt}</div>
+        ${kBadge?`<div style="margin-top:2px">${kBadge}</div>`:''}
       </div>
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer"><span class="badge badge-${t.status}">${t.status}</span></div>
       <div class="t-cell" onclick="openModal(${t.id})" style="font-size:11px;color:#888;cursor:pointer">${esc(t.owner||'—')}</div>
@@ -688,13 +864,16 @@ function renderList(){
       t.subtasks.forEach(st=>{
         const isMachining=st.name.includes('機械加工');
         const machiningCls=isMachining?' machining-row':'';
+        const stKBadge=kakouBadgeHtml(st.kakouSaki);
         html+=`<div class="st-row${machiningCls}">
           <div class="t-cell"></div>
           <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer;">
             <div class="st-indent">
               ${isMachining?'<i class="ti ti-tool" style="font-size:11px;color:#2DAA7A;flex-shrink:0"></i>':'<i class="ti ti-corner-down-right" style="font-size:11px;color:#bbb;flex-shrink:0"></i>'}
               <span class="st-name">${esc(st.name)}</span>
+              ${stKBadge?`<span>${stKBadge}</span>`:''}
             </div>
+            ${st.note?`<div class="st-note">${esc(st.note)}</div>`:''}
           </div>
           <div class="t-cell"><span class="badge badge-${st.status}" style="font-size:9px">${st.status}</span></div>
           <div class="t-cell" style="font-size:10px;color:#aaa">${esc(st.owner||'—')}</div>
@@ -803,11 +982,10 @@ function renderTimeline(){
     const c=clip(barX(t.start),barW(t.start,t.end));
     if(c){
       const lbl=esc(t.name)+(t.prog>0?' '+t.prog+'%':'');
-      bars+=`<div class="gantt-bar bar-parent bar-${t.status}" style="left:${c.left}px;width:${c.width}px;top:${top+10}px" onmouseenter="showTip(event,${t.id})" onmouseleave="hideTip()" onclick="openModal(${t.id})">${lbl}</div>`;
+      bars+=`<div id="bar-${t.id}" class="gantt-bar bar-parent bar-${t.status}" style="left:${c.left}px;width:${c.width}px;top:${top+10}px" onmousedown="barDown(event,${t.id},'')" onmouseenter="showTip(event,${t.id})" onmouseleave="hideTip()">${lbl}</div>`;
     }
     top+=ROW;
 
-    /* 機械加工タブでは機械加工サブタスクのみ、メインでは全サブタスク表示 */
     const subsToShow=currentTab==='machining'
       ?(t.subtasks||[]).filter(st=>st.name.includes('機械加工'))
       :(t.expanded?(t.subtasks||[]):[]);
@@ -818,15 +996,11 @@ function renderTimeline(){
       const sc=clip(barX(st.start),barW(st.start,st.end));
       if(sc){
         const isMachining=st.name.includes('機械加工');
-        const barCls=isMachining?'bar-機械加工':'';
-        bars+=`<div class="gantt-bar bar-sub ${barCls||'bar-'+st.status}" style="left:${sc.left}px;width:${sc.width}px;top:${top+10}px" onmouseenter="showSubTip(event,${t.id},'${st.id}')" onmouseleave="hideTip()">${esc(st.name)}</div>`;
+        const barCls=isMachining?'bar-機械加工':'bar-'+st.status;
+        bars+=`<div id="bar-${t.id}-${st.id}" class="gantt-bar bar-sub ${barCls}" style="left:${sc.left}px;width:${sc.width}px;top:${top+10}px" onmousedown="barDown(event,${t.id},'${st.id}')" onmouseenter="showSubTip(event,${t.id},'${st.id}')" onmouseleave="hideTip()">${esc(st.name)}</div>`;
       }
       top+=SROW;
     });
-    /* 機械加工タブで展開していなかった場合も機械加工サブを強制展開 */
-    if(currentTab==='machining'&&!t.expanded){
-      // subtask rows already added above; keep top offset in sync
-    }
   });
 
   ba.style.minHeight=top+'px';
@@ -837,6 +1011,93 @@ function scrollToToday(){
   const days=getDays(),today=new Date();today.setHours(0,0,0,0);
   const idx=days.findIndex(d=>d.getTime()===today.getTime());
   if(idx>=0)document.getElementById('gRight').scrollLeft=Math.max(0,idx*DAY_W-120);
+}
+
+/* ─── Drag to move bars ─── */
+function barDown(e,taskId,subId){
+  e.preventDefault();
+  e.stopPropagation();
+  hideTip();
+  const t=tasks.find(x=>x.id===taskId);
+  if(!t) return;
+  let origStart,origEnd,parentStart,parentEnd;
+  if(subId===''){
+    origStart=t.start; origEnd=t.end;
+    parentStart=null; parentEnd=null;
+  }else{
+    const st=(t.subtasks||[]).find(x=>x.id===subId);
+    if(!st) return;
+    origStart=st.start; origEnd=st.end;
+    parentStart=t.start; parentEnd=t.end;
+  }
+  const barId=subId===''?`bar-${taskId}`:`bar-${taskId}-${subId}`;
+  const el=document.getElementById(barId);
+  dragState={
+    el,taskId,subId,
+    startX:e.clientX,
+    origStart,origEnd,
+    parentStart,parentEnd,
+    moved:false,
+    lastDelta:0,
+    previewStart:origStart,
+    previewEnd:origEnd
+  };
+}
+
+/* ─── Bar click inline editor ─── */
+function showBarEditor(taskId,subId,cx,cy){
+  const t=tasks.find(x=>x.id===taskId);
+  if(!t) return;
+  barEditorState={taskId,subId};
+  const ed=document.getElementById('barEditor');
+  if(subId===''){
+    document.getElementById('beTitle').textContent=t.name;
+    document.getElementById('beStart').value=t.start;
+    document.getElementById('beEnd').value=t.end;
+    document.getElementById('beHint').textContent='';
+  }else{
+    const st=(t.subtasks||[]).find(x=>x.id===subId);
+    if(!st){ed.classList.add('hidden');return;}
+    document.getElementById('beTitle').textContent='↳ '+st.name;
+    document.getElementById('beStart').value=st.start;
+    document.getElementById('beEnd').value=st.end;
+    document.getElementById('beHint').textContent='親タスク範囲: '+t.start+' 〜 '+t.end;
+  }
+  ed.classList.remove('hidden');
+  const w=230,h=180;
+  let left=cx+8,top=cy+8;
+  if(left+w>window.innerWidth) left=cx-w-8;
+  if(top+h>window.innerHeight) top=cy-h-8;
+  ed.style.left=Math.max(4,left)+'px';
+  ed.style.top=Math.max(4,top)+'px';
+}
+
+function saveBarEdit(){
+  const newStart=document.getElementById('beStart').value;
+  const newEnd=document.getElementById('beEnd').value;
+  if(!newStart||!newEnd){alert('開始日と終了日を入力してください');return;}
+  if(newStart>newEnd){alert('終了日は開始日以降にしてください');return;}
+  const {taskId,subId}=barEditorState;
+  const t=tasks.find(x=>x.id===taskId);
+  if(!t){document.getElementById('barEditor').classList.add('hidden');return;}
+  if(subId===''){
+    t.start=newStart; t.end=newEnd;
+  }else{
+    const st=(t.subtasks||[]).find(x=>x.id===subId);
+    if(st){
+      let s=newStart,en=newEnd;
+      if(s<t.start) s=t.start;
+      if(en>t.end) en=t.end;
+      if(s>en) en=s;
+      st.start=s; st.end=en;
+    }
+  }
+  saveTasks();
+  document.getElementById('barEditor').classList.add('hidden');
+}
+
+function cancelBarEdit(){
+  document.getElementById('barEditor').classList.add('hidden');
 }
 
 /* ─── 案件モーダル ─── */
@@ -870,6 +1131,18 @@ function setFields(t){
   document.getElementById('fProg').value=t.prog;
   document.getElementById('fProgVal').textContent=t.prog+'%';
   document.getElementById('fNote').value=t.note||'';
+  /* 加工先 */
+  const ks=t.kakouSaki||'';
+  const knownVals=['','吉田機工','タガミ・イーエクス'];
+  if(knownVals.includes(ks)){
+    document.getElementById('fKakouSaki').value=ks;
+    document.getElementById('fKakouSakiOther').value='';
+    document.getElementById('fKakouSakiOther').style.display='none';
+  }else{
+    document.getElementById('fKakouSaki').value='その他';
+    document.getElementById('fKakouSakiOther').value=ks;
+    document.getElementById('fKakouSakiOther').style.display='block';
+  }
 }
 function clearFields(){
   ['fName','fKoban','fNum','fOwner','fNote'].forEach(id=>document.getElementById(id).value='');
@@ -878,7 +1151,11 @@ function clearFields(){
   document.getElementById('fStatus').value='未着手';
   document.getElementById('fProg').value=0;
   document.getElementById('fProgVal').textContent='0%';
+  document.getElementById('fKakouSaki').value='';
+  document.getElementById('fKakouSakiOther').value='';
+  document.getElementById('fKakouSakiOther').style.display='none';
 }
+
 function renderSubtaskList(){
   const list=document.getElementById('subtaskList');
   if(!editSubtasks.length){list.innerHTML='<div style="font-size:11px;color:#bbb;padding:4px 0">工程なし</div>';return;}
@@ -899,6 +1176,16 @@ function renderSubtaskList(){
             <span id="se-prog-val" style="font-size:11px;font-weight:500;min-width:32px;text-align:right">${st.prog}%</span>
           </div>
         </div>
+        <div class="st-edit-row3">
+          <select id="se-kakou" onchange="onKakouSakiChange('se-kakou','se-kakou-other')">
+            <option value="">加工先未設定</option>
+            <option value="吉田機工"${(st.kakouSaki==='吉田機工')?' selected':''}>吉田機工</option>
+            <option value="タガミ・イーエクス"${(st.kakouSaki==='タガミ・イーエクス')?' selected':''}>タガミ・イーエクス</option>
+            <option value="その他"${(st.kakouSaki&&st.kakouSaki!=='吉田機工'&&st.kakouSaki!=='タガミ・イーエクス')?' selected':''}>その他</option>
+          </select>
+          <input type="text" id="se-kakou-other" placeholder="加工先" value="${(st.kakouSaki&&st.kakouSaki!=='吉田機工'&&st.kakouSaki!=='タガミ・イーエクス')?esc(st.kakouSaki):''}" style="display:${(st.kakouSaki&&st.kakouSaki!=='吉田機工'&&st.kakouSaki!=='タガミ・イーエクス')?'block':'none'}">
+          <input type="text" id="se-note" placeholder="備考" value="${esc(st.note||'')}">
+        </div>
         <div class="st-edit-actions">
           <button onclick="cancelEditSub()">キャンセル</button>
           <button class="st-save-btn" onclick="saveEditSub(${i})"><i class="ti ti-check"></i> 保存</button>
@@ -906,10 +1193,12 @@ function renderSubtaskList(){
       </div>`;
     }
     const isMachining=st.name.includes('機械加工');
+    const stKBadge=kakouBadgeHtml(st.kakouSaki);
     return `<div class="st-item${isMachining?' machining-item':''}">
       ${isMachining?'<i class="ti ti-tool" style="color:#2DAA7A;font-size:13px;flex-shrink:0"></i>':''}
-      <div class="st-item-name">${esc(st.name)}</div>
+      <div class="st-item-name">${esc(st.name)}${stKBadge?' '+stKBadge:''}</div>
       <div class="st-item-info">${st.start} 〜 ${st.end}</div>
+      ${st.note?`<span class="st-note">${esc(st.note)}</span>`:''}
       <span class="badge badge-${st.status}" style="font-size:9px">${st.status}</span>
       <button class="st-item-edit-btn" onclick="startEditSub(${i})" title="編集"><i class="ti ti-pencil"></i></button>
       <button class="st-item-del" onclick="removeSubtask(${i})" title="削除"><i class="ti ti-x"></i></button>
@@ -925,7 +1214,10 @@ function saveEditSub(i){
   if(!name){document.getElementById('se-name').focus();return;}
   if(!start||!end){alert('開始日と終了日を入力してください');return;}
   if(start>end){alert('終了日は開始日以降にしてください');return;}
-  editSubtasks[i]={...editSubtasks[i],name,start,end,status:document.getElementById('se-status').value,prog:parseInt(document.getElementById('se-prog').value)};
+  const kakouVal=document.getElementById('se-kakou').value;
+  const kakouSaki=kakouVal==='その他'?(document.getElementById('se-kakou-other').value.trim()||'その他'):kakouVal;
+  const note=document.getElementById('se-note').value.trim();
+  editSubtasks[i]={...editSubtasks[i],name,start,end,status:document.getElementById('se-status').value,prog:parseInt(document.getElementById('se-prog').value),kakouSaki,note};
   editingSubIdx=-1;renderSubtaskList();
 }
 function addSubtaskRow(){
@@ -934,10 +1226,16 @@ function addSubtaskRow(){
   if(!name){document.getElementById('stName').focus();return;}
   if(!start||!end){alert('開始日と終了日を入力してください');return;}
   if(start>end){alert('終了日は開始日以降にしてください');return;}
-  editSubtasks.push({id:'s'+Date.now(),name,owner:'',start,end,status:'未着手',prog:0});
+  const kakouSaki=resolveKakouSaki('stKakouSaki','stKakouSakiOther');
+  const note=document.getElementById('stNote').value.trim();
+  editSubtasks.push({id:'s'+Date.now(),name,owner:'',start,end,status:'未着手',prog:0,kakouSaki,note});
   document.getElementById('stName').value='';
   document.getElementById('stStart').value='';
   document.getElementById('stEnd').value='';
+  document.getElementById('stKakouSaki').value='';
+  document.getElementById('stKakouSakiOther').value='';
+  document.getElementById('stKakouSakiOther').style.display='none';
+  document.getElementById('stNote').value='';
   renderSubtaskList();
   document.getElementById('stName').focus();
 }
@@ -950,7 +1248,19 @@ function saveTask(){
   if(!start){alert('開始日を入力してください');return;}
   if(!end){alert('納期を入力してください');return;}
   if(start>end){alert('納期は開始日以降に設定してください');return;}
-  const d={name,koban:document.getElementById('fKoban').value.trim(),num:document.getElementById('fNum').value.trim(),owner:document.getElementById('fOwner').value.trim(),start,end,status:document.getElementById('fStatus').value,prog:parseInt(document.getElementById('fProg').value),note:document.getElementById('fNote').value.trim(),subtasks:editSubtasks};
+  const kakouSaki=resolveKakouSaki('fKakouSaki','fKakouSakiOther');
+  const d={
+    name,
+    koban:document.getElementById('fKoban').value.trim(),
+    num:document.getElementById('fNum').value.trim(),
+    owner:document.getElementById('fOwner').value.trim(),
+    start,end,
+    status:document.getElementById('fStatus').value,
+    prog:parseInt(document.getElementById('fProg').value),
+    note:document.getElementById('fNote').value.trim(),
+    kakouSaki,
+    subtasks:editSubtasks
+  };
   if(editId){const i=tasks.findIndex(t=>t.id===editId);if(i>=0)tasks[i]={...tasks[i],...d,expanded:tasks[i].expanded};}
   else{d.id=Date.now();d.expanded=false;tasks.push(d);}
   saveTasks();closeModal();
@@ -993,20 +1303,48 @@ function removeHoliday(date){
   saveHolidays();
 }
 
-/* ─── Excel インポート ─── */
+/* ─── Excel インポート（仕様名を親タスクに） ─── */
 function parseJaDate(str){
-  if(!str)return null;
+  if(!str) return null;
   str=String(str).trim();
-  /* 既にISO形式の場合 */
-  if(/^\d{4}-\d{2}-\d{2}$/.test(str))return str;
-  /* M/D または MM/DD 形式 */
+  if(/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
   const m=str.match(/^(\d{1,2})\/(\d{1,2})$/);
-  if(!m)return null;
+  if(!m) return null;
   const mon=parseInt(m[1]),day=parseInt(m[2]);
-  if(mon<1||mon>12||day<1||day>31)return null;
-  /* 10〜12月 → 2025年, 1〜9月 → 2026年（FY2025基準） */
+  if(mon<1||mon>12||day<1||day>31) return null;
   const yr=mon>=10?2025:2026;
   return `${yr}-${String(mon).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+
+/* 仕様名 → サブタスク品種マップ */
+const SPEC_SUBTASK_MAP={
+  'GD825':['アジャスター'],
+  'GD955':['アジャスター','ドローバ','サークル','ブレード'],
+  'K56':['アジャスター','ドローバ','サークル'],
+  '特殊機':['大）マテハン','エ）エクステ','エ）BUCKET','エ）JAW']
+};
+
+/* デフォルト加工先ルール */
+function getDefaultKakouSaki(specName,partType){
+  if(specName==='GD955'&&partType==='サークル') return 'タガミ・イーエクス';
+  if(specName==='K56'&&partType==='サークル') return 'タガミ・イーエクス';
+  if(specName==='特殊機'&&partType==='大）マテハン') return 'タガミ・イーエクス';
+  return '吉田機工';
+}
+
+function extractSpecName(s){
+  if(!s) return null;
+  for(const k of Object.keys(SPEC_SUBTASK_MAP)){
+    if(s.includes(k)) return k;
+  }
+  return null;
+}
+
+/* 品番から品種を抽出（最初の数字列の前のテキスト） */
+function extractPartType(pnum){
+  if(!pnum) return null;
+  const m=pnum.match(/^([^\d]+)/);
+  return m?m[1].trim():null;
 }
 
 async function handleImportFile(file){
@@ -1019,87 +1357,116 @@ async function handleImportFile(file){
     const cell=(r,c)=>{
       const addr=XLSX.utils.encode_cell({r,c});
       const v=ws[addr];
-      if(!v)return '';
-      /* 日付シリアル値を M/D 文字列に変換 */
+      if(!v) return '';
       if(v.t==='n'&&v.z&&v.z.includes('/')){
         const dt=XLSX.SSF.parse_date_code(v.v);
-        if(dt)return `${dt.m}/${dt.d}`;
+        if(dt) return `${dt.m}/${dt.d}`;
       }
       return String(v.v||'').trim();
     };
 
-    /* データは行インデックス6〜（0-based）= Excelの7行目〜 */
-    const groups={};
-    let lastSpec='',lastPnum='',lastKoban='';
+    /* グループ: {specName: {partType: [{pnum,koban,rows:[]}]}} */
+    const specGroups={};
+    let lastSpec='',lastPnum='';
 
     for(let r=6;r<=range.e.r;r++){
-      const spec=cell(r,0)||lastSpec;
+      const rawSpec=cell(r,0)||lastSpec;
       const pnum=cell(r,1)||lastPnum;
-      const koban=cell(r,2)||lastKoban;
-      if(!koban)continue;
+      const koban=cell(r,2);
+      if(!koban) continue;
 
       const komatsuDeadline=cell(r,4);
-      const qty=cell(r,5);
-      const stampNo=cell(r,6);
-      const transportOut=cell(r,7); /* あわら→吉田機工 = 加工開始 */
-      const transportIn=cell(r,8);  /* 吉田機工→あわら = 加工終了 */
+      const transportOut=cell(r,7);
+      const transportIn=cell(r,8);
 
-      if(spec)lastSpec=spec;
-      if(pnum)lastPnum=pnum;
-      lastKoban=koban;
+      if(cell(r,0)) lastSpec=cell(r,0);
+      if(cell(r,1)) lastPnum=cell(r,1);
 
-      if(!groups[koban])groups[koban]={spec,pnum,koban,rows:[]};
-      groups[koban].rows.push({komatsuDeadline,qty,stampNo,transportOut,transportIn});
+      const specName=extractSpecName(rawSpec)||rawSpec||'不明';
+      const partType=extractPartType(pnum)||pnum||'不明';
+
+      if(!specGroups[specName]) specGroups[specName]={};
+      if(!specGroups[specName][partType]) specGroups[specName][partType]=[];
+      specGroups[specName][partType].push({pnum,koban,komatsuDeadline,transportOut,transportIn});
     }
 
-    /* タスク変換 */
     importPendingTasks=[];
-    for(const [koban,g] of Object.entries(groups)){
-      const starts=g.rows.map(row=>parseJaDate(row.transportOut)).filter(Boolean).sort();
-      const ends=g.rows.map(row=>parseJaDate(row.komatsuDeadline)).filter(Boolean).sort();
-      if(!starts.length||!ends.length)continue;
+    const usedIds=new Set();
+    function uniqueId(){let id;do{id=Date.now()+Math.floor(Math.random()*1e6);}while(usedIds.has(id));usedIds.add(id);return id;}
 
-      const subtasks=g.rows
-        .filter(row=>parseJaDate(row.transportOut)&&parseJaDate(row.transportIn))
-        .map(row=>({
-          id:'s'+Date.now()+Math.floor(Math.random()*1e6),
-          name:row.stampNo?'刻印No.'+row.stampNo.trim():'機械加工',
-          owner:'',
-          start:parseJaDate(row.transportOut),
-          end:parseJaDate(row.transportIn),
-          status:'未着手',
-          prog:0
-        }));
+    for(const [specName,partGroups] of Object.entries(specGroups)){
+      /* 親タスクの日程を全サブタスクから集計 */
+      let parentStarts=[],parentEnds=[];
+      const subtasks=[];
+
+      for(const [partType,rows] of Object.entries(partGroups)){
+        const kakouSaki=getDefaultKakouSaki(specName,partType);
+
+        /* ブレードは品番ごとに別サブタスク */
+        if(partType==='ブレード'){
+          const byPnum={};
+          rows.forEach(row=>{
+            if(!byPnum[row.pnum]) byPnum[row.pnum]=[];
+            byPnum[row.pnum].push(row);
+          });
+          for(const [fullPnum,prows] of Object.entries(byPnum)){
+            const starts=prows.map(row=>parseJaDate(row.transportOut)).filter(Boolean).sort();
+            const ends=prows.map(row=>parseJaDate(row.transportIn)).filter(Boolean).sort();
+            if(!starts.length||!ends.length) continue;
+            const s=starts[0],e=ends[ends.length-1];
+            parentStarts.push(s); parentEnds.push(e);
+            subtasks.push({id:'s'+uniqueId(),name:partType,owner:'',start:s,end:e,status:'未着手',prog:0,kakouSaki,note:fullPnum});
+          }
+        }else{
+          const starts=rows.map(row=>parseJaDate(row.transportOut)).filter(Boolean).sort();
+          const ends=rows.map(row=>parseJaDate(row.transportIn)).filter(Boolean).sort();
+          if(!starts.length||!ends.length) continue;
+          const s=starts[0],e=ends[ends.length-1];
+          parentStarts.push(s); parentEnds.push(e);
+          subtasks.push({id:'s'+uniqueId(),name:partType,owner:'',start:s,end:e,status:'未着手',prog:0,kakouSaki,note:''});
+        }
+      }
+
+      if(!subtasks.length) continue;
+
+      /* コマツ納期を親の終了日に */
+      const allDeadlines=[];
+      for(const rows of Object.values(partGroups)){
+        rows.forEach(row=>{const d=parseJaDate(row.komatsuDeadline);if(d)allDeadlines.push(d);});
+      }
+      allDeadlines.sort();
+      const parentStart=parentStarts.sort()[0];
+      const parentEnd=allDeadlines.length?allDeadlines[allDeadlines.length-1]:parentEnds.sort().pop();
 
       importPendingTasks.push({
-        id:Date.now()+Math.floor(Math.random()*1e6),
-        name:g.pnum||g.spec||koban,
-        koban:koban,
-        num:g.spec||'',
+        id:uniqueId(),
+        name:specName,
+        koban:'',
+        num:'',
         owner:'',
-        start:starts[0],
-        end:ends[ends.length-1],
+        start:parentStart,
+        end:parentEnd,
         status:'未着手',
         prog:0,
         note:'',
+        kakouSaki:'',
         subtasks,
-        expanded:false
+        expanded:true
       });
     }
 
     if(!importPendingTasks.length){alert('取込可能なデータが見つかりませんでした。\nExcelの形式を確認してください。');return;}
 
-    /* プレビュー表示 */
     document.getElementById('importCount').textContent=`${importPendingTasks.length}件の案件をインポートします`;
     const rows=importPendingTasks.map(t=>`<tr>
       <td>${esc(t.name)}</td>
-      <td>${esc(t.koban)}</td>
       <td>${t.start}</td>
       <td>${t.end}</td>
       <td>${t.subtasks.length}工程</td>
+      <td>${t.subtasks.map(st=>`${esc(st.name)}（${esc(st.kakouSaki)}）`).join(', ')}</td>
     </tr>`).join('');
     document.getElementById('importPreview').innerHTML=`<table>
-      <thead><tr><th>案件名</th><th>工番</th><th>開始日</th><th>納期</th><th>工程数</th></tr></thead>
+      <thead><tr><th>仕様名</th><th>開始日</th><th>納期</th><th>工程数</th><th>工程・加工先</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
     document.getElementById('importModal').classList.remove('hidden');
@@ -1110,8 +1477,10 @@ async function handleImportFile(file){
 }
 
 function executeImport(){
-  if(!importPendingTasks.length)return;
+  if(!importPendingTasks.length) return;
   tasks=[...tasks,...importPendingTasks];
+  importPendingTasks.forEach(t=>{if(t.expanded)expandedIds.add(String(t.id));});
+  saveExpanded();
   saveTasks();
   importPendingTasks=[];
   document.getElementById('importModal').classList.add('hidden');
@@ -1122,16 +1491,15 @@ function exportExcel(){
   const wb=XLSX.utils.book_new();
 
   /* Sheet1: 案件一覧 */
-  const taskData=[['案件名','工番','品番','担当者','開始日','納期','ステータス','進捗率','メモ']];
+  const taskData=[['案件名','工番','品番','担当者','開始日','納期','ステータス','進捗率','加工先','備考']];
   tasks.forEach(t=>{
-    taskData.push([t.name,t.koban||'',t.num||'',t.owner||'',t.start,t.end,t.status,t.prog+'%',t.note||'']);
+    taskData.push([t.name,t.koban||'',t.num||'',t.owner||'',t.start,t.end,t.status,t.prog+'%',t.kakouSaki||'',t.note||'']);
     (t.subtasks||[]).forEach(st=>{
-      taskData.push(['  └ '+st.name,'','',st.owner||'',st.start,st.end,st.status,st.prog+'%','']);
+      taskData.push(['  └ '+st.name,'','',st.owner||'',st.start,st.end,st.status,st.prog+'%',st.kakouSaki||'',st.note||'']);
     });
   });
   const ws1=XLSX.utils.aoa_to_sheet(taskData);
-  /* 列幅設定 */
-  ws1['!cols']=[{wch:30},{wch:12},{wch:16},{wch:10},{wch:12},{wch:12},{wch:8},{wch:8},{wch:24}];
+  ws1['!cols']=[{wch:28},{wch:12},{wch:16},{wch:10},{wch:12},{wch:12},{wch:8},{wch:8},{wch:18},{wch:24}];
   XLSX.utils.book_append_sheet(wb,ws1,'案件一覧');
 
   /* Sheet2: ガントチャート（日付グリッド） */
@@ -1161,20 +1529,19 @@ function exportExcel(){
   XLSX.utils.book_append_sheet(wb,ws2,'ガントチャート');
 
   /* Sheet3: 機械加工専用日程表 */
-  const mTasks=tasks.filter(t=>t.subtasks&&t.subtasks.some(st=>st.name.includes('機械加工')));
-  const mHeader=['案件名','工番','品番','担当者','機械加工開始','機械加工終了','ステータス','工程数'];
+  const mHeader=['案件名','工番','品番','担当者','開始日','終了日','ステータス','工程数','加工先','備考'];
   const mData=[mHeader];
-  mTasks.forEach(t=>{
-    const mSubs=(t.subtasks||[]).filter(st=>st.name.includes('機械加工'));
-    const mStart=mSubs.map(s=>s.start).sort()[0]||'';
-    const mEnd=mSubs.map(s=>s.end).sort().pop()||'';
-    mData.push([t.name,t.koban||'',t.num||'',t.owner||'',mStart,mEnd,t.status,mSubs.length]);
-    mSubs.forEach(st=>{
-      mData.push(['  └ '+st.name,'','','',st.start,st.end,st.status,'']);
+  tasks.forEach(t=>{
+    if(!(t.subtasks&&t.subtasks.length)) return;
+    const pStart=t.subtasks.map(s=>s.start).sort()[0]||'';
+    const pEnd=t.subtasks.map(s=>s.end).sort().pop()||'';
+    mData.push([t.name,t.koban||'',t.num||'',t.owner||'',pStart,pEnd,t.status,t.subtasks.length,t.kakouSaki||'',t.note||'']);
+    t.subtasks.forEach(st=>{
+      mData.push(['  └ '+st.name,'','','',st.start,st.end,st.status,'',st.kakouSaki||'',st.note||'']);
     });
   });
   const ws3=XLSX.utils.aoa_to_sheet(mData);
-  ws3['!cols']=[{wch:28},{wch:12},{wch:14},{wch:10},{wch:14},{wch:14},{wch:8},{wch:8}];
+  ws3['!cols']=[{wch:28},{wch:12},{wch:14},{wch:10},{wch:14},{wch:14},{wch:8},{wch:8},{wch:18},{wch:24}];
   XLSX.utils.book_append_sheet(wb,ws3,'機械加工専用日程表');
 
   const today=new Date().toISOString().slice(0,10);
@@ -1183,6 +1550,7 @@ function exportExcel(){
 
 /* ─── TOOLTIP ─── */
 function showTip(e,id){
+  if(dragState&&dragState.moved) return;
   const t=tasks.find(x=>x.id===id);if(!t)return;
   const tip=document.getElementById('tip');tip.classList.remove('hidden');
   document.getElementById('ttName').textContent=t.name;
@@ -1191,9 +1559,11 @@ function showTip(e,id){
   document.getElementById('ttDates').textContent='期間: '+t.start+' 〜 '+t.end;
   document.getElementById('ttOwner').textContent=t.owner?'担当: '+t.owner:'';
   document.getElementById('ttProg').textContent='ステータス: '+t.status+'  進捗: '+t.prog+'%';
+  document.getElementById('ttKakou').textContent=t.kakouSaki?'加工先: '+t.kakouSaki:'';
   document.getElementById('ttNote').textContent=t.note?'備考: '+t.note:'';
 }
 function showSubTip(e,pid,sid){
+  if(dragState&&dragState.moved) return;
   const t=tasks.find(x=>x.id===pid);if(!t)return;
   const st=t.subtasks.find(x=>x.id==sid);if(!st)return;
   const tip=document.getElementById('tip');tip.classList.remove('hidden');
@@ -1203,7 +1573,8 @@ function showSubTip(e,pid,sid){
   document.getElementById('ttDates').textContent='期間: '+st.start+' 〜 '+st.end;
   document.getElementById('ttOwner').textContent=st.owner?'担当: '+st.owner:'';
   document.getElementById('ttProg').textContent='ステータス: '+st.status+'  進捗: '+st.prog+'%';
-  document.getElementById('ttNote').textContent='';
+  document.getElementById('ttKakou').textContent=st.kakouSaki?'加工先: '+st.kakouSaki:'';
+  document.getElementById('ttNote').textContent=st.note?'備考: '+st.note:'';
 }
 function hideTip(){document.getElementById('tip').classList.add('hidden');}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
