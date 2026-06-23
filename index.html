@@ -975,8 +975,11 @@ function renderList(){
           :`<button class="act-btn del" onclick="requestDel(event,${t.id})" title="削除"><i class="ti ti-trash"></i></button>`}
       </div></div>
     </div>`;
-    if(t.expanded&&t.subtasks&&t.subtasks.length){
-      t.subtasks.forEach(st=>{
+    const stsToShow=currentTab==='machining'
+      ?(t.subtasks||[]).filter(st=>st.name.includes('機械加工'))
+      :(t.expanded?(t.subtasks||[]):[]);
+    if(stsToShow.length){
+      stsToShow.forEach(st=>{
         const isMachining=st.name.includes('機械加工');
         const machiningCls=isMachining?' machining-row':'';
         const stKBadge=kakouBadgeHtml(st.kakouSaki);
