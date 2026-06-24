@@ -344,7 +344,6 @@ function renderList(){
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer;">
         <div class="task-name">${esc(t.name)}</div>
         <div class="task-num">${esc(t.num||'—')}${kobanTxt}</div>
-        ${kBadge?`<div style="margin-top:2px">${kBadge}</div>`:''}
       </div>
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer"><span class="badge badge-${t.status}">${t.status}</span></div>
       <div class="t-cell" onclick="openModal(${t.id})" style="font-size:11px;color:#888;cursor:pointer">${esc(t.owner||'—')}</div>
