@@ -284,7 +284,10 @@ function getDisplayTasks(){
     list=list.filter(t=>
       t.name.toLowerCase().includes(q)||
       (t.num||'').toLowerCase().includes(q)||
-      (t.koban||'').toLowerCase().includes(q)
+      (t.koban||'').toLowerCase().includes(q)||
+      (t.modelName||'').toLowerCase().includes(q)||
+      (t.kakouSaki||'').toLowerCase().includes(q)||
+      (t.subtasks||[]).some(st=>(st.kakouSaki||'').toLowerCase().includes(q))
     );
   }
   if(currentTab==='machining'){
@@ -343,6 +346,7 @@ function renderList(){
       </div>
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer;">
         <div class="task-name">${esc(t.name)}</div>
+        ${t.modelName?`<div class="task-model">${esc(t.modelName)}</div>`:''}
         <div class="task-num">${esc(t.num||'—')}${kobanTxt}</div>
       </div>
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer"><span class="badge badge-${t.status}">${t.status}</span></div>
@@ -374,7 +378,7 @@ function renderList(){
           </div>
           <div class="t-cell"><span class="badge badge-${st.status}" style="font-size:9px">${st.status}</span></div>
           <div class="t-cell" style="font-size:10px;color:#aaa">${esc(st.owner||'—')}</div>
-          <div class="t-cell" style="font-size:10px;color:#777">${esc(st.koban||(t.koban?t.koban+'(引継)':'—'))}</div>
+          <div class="t-cell" style="font-size:10px;color:#777">${esc(st.stampNo||'—')}</div>
           <div class="t-cell"></div>
         </div>`;
       });
@@ -571,6 +575,8 @@ function showBarEditor(taskId,subId,cx,cy){
     document.getElementById('beTitle').textContent=t.name;
     document.getElementById('beStart').value=t.start;
     document.getElementById('beEnd').value=t.end;
+    document.getElementById('beStampNo').value=t.stampNo||'';
+    document.getElementById('beStampRow').style.display='';
     document.getElementById('beHint').textContent='';
   }else{
     const st=(t.subtasks||[]).find(x=>x.id===subId);
@@ -578,6 +584,8 @@ function showBarEditor(taskId,subId,cx,cy){
     document.getElementById('beTitle').textContent='↳ '+st.name;
     document.getElementById('beStart').value=st.start;
     document.getElementById('beEnd').value=st.end;
+    document.getElementById('beStampNo').value=st.stampNo||'';
+    document.getElementById('beStampRow').style.display='';
     document.getElementById('beHint').textContent='親タスク範囲: '+t.start+' 〜 '+t.end;
   }
   ed.classList.remove('hidden');
@@ -597,8 +605,9 @@ function saveBarEdit(){
   const {taskId,subId}=barEditorState;
   const t=tasks.find(x=>x.id===taskId);
   if(!t){document.getElementById('barEditor').classList.add('hidden');return;}
+  const newStamp=document.getElementById('beStampNo').value.trim();
   if(subId===''){
-    t.start=newStart; t.end=newEnd;
+    t.start=newStart; t.end=newEnd; t.stampNo=newStamp;
   }else{
     const st=(t.subtasks||[]).find(x=>x.id===subId);
     if(st){
@@ -606,7 +615,7 @@ function saveBarEdit(){
       if(s<t.start) s=t.start;
       if(en>t.end) en=t.end;
       if(s>en) en=s;
-      st.start=s; st.end=en;
+      st.start=s; st.end=en; st.stampNo=newStamp;
     }
   }
   saveTasks();
@@ -785,6 +794,7 @@ function openModal(id){
 
 function setFields(t){
   document.getElementById('fName').value=t.name;
+  document.getElementById('fModelName').value=t.modelName||'';
   document.getElementById('fKoban').value=t.koban||'';
   document.getElementById('fStampNo').value=t.stampNo||'';
   document.getElementById('fNum').value=t.num||'';
@@ -807,7 +817,7 @@ function setFields(t){
   }
 }
 function clearFields(){
-  ['fName','fKoban','fStampNo','fNum','fOwner','fNote'].forEach(id=>document.getElementById(id).value='');
+  ['fName','fModelName','fKoban','fStampNo','fNum','fOwner','fNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fStart').value=new Date().toISOString().slice(0,10);
   document.getElementById('fEnd').value='';
   document.getElementById('fStatus').value='未着手';
@@ -929,6 +939,7 @@ function saveTask(){
   const kakouSaki=resolveKakouSaki('fKakouSaki','fKakouSakiOther');
   const d={
     name,
+    modelName:document.getElementById('fModelName').value.trim(),
     koban:document.getElementById('fKoban').value.trim(),
     stampNo:document.getElementById('fStampNo').value.trim(),
     num:document.getElementById('fNum').value.trim(),

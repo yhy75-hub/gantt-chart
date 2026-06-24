@@ -60,6 +60,7 @@ input,select{font-family:inherit;font-size:13px;}
 .t-row:hover{background:#f8f8f4;}
 .t-row .t-cell{font-size:12px;color:#1a1a1a;}
 .task-name{font-weight:500;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.task-model{font-size:10px;color:#5B89C8;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .task-num{font-size:10px;color:#888;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .task-koban{font-size:10px;color:#5B89C8;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 
