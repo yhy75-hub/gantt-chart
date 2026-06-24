@@ -285,7 +285,7 @@ function getDisplayTasks(){
       t.name.toLowerCase().includes(q)||
       (t.num||'').toLowerCase().includes(q)||
       (t.koban||'').toLowerCase().includes(q)||
-      (t.modelName||'').toLowerCase().includes(q)||
+      (t.productName||'').toLowerCase().includes(q)||
       (t.kakouSaki||'').toLowerCase().includes(q)||
       (t.subtasks||[]).some(st=>(st.kakouSaki||'').toLowerCase().includes(q))
     );
@@ -346,7 +346,7 @@ function renderList(){
       </div>
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer;">
         <div class="task-name">${esc(t.name)}</div>
-        ${t.modelName?`<div class="task-model">${esc(t.modelName)}</div>`:''}
+        ${t.productName?`<div class="task-model">${esc(t.productName)}</div>`:''}
         <div class="task-num">${esc(t.num||'—')}${kobanTxt}</div>
       </div>
       <div class="t-cell" onclick="openModal(${t.id})" style="cursor:pointer"><span class="badge badge-${t.status}">${t.status}</span></div>
@@ -794,7 +794,7 @@ function openModal(id){
 
 function setFields(t){
   document.getElementById('fName').value=t.name;
-  document.getElementById('fModelName').value=t.modelName||'';
+  document.getElementById('fProductName').value=t.productName||'';
   document.getElementById('fKoban').value=t.koban||'';
   document.getElementById('fStampNo').value=t.stampNo||'';
   document.getElementById('fNum').value=t.num||'';
@@ -817,7 +817,7 @@ function setFields(t){
   }
 }
 function clearFields(){
-  ['fName','fModelName','fKoban','fStampNo','fNum','fOwner','fNote'].forEach(id=>document.getElementById(id).value='');
+  ['fName','fProductName','fKoban','fStampNo','fNum','fOwner','fNote'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('fStart').value=new Date().toISOString().slice(0,10);
   document.getElementById('fEnd').value='';
   document.getElementById('fStatus').value='未着手';
@@ -939,7 +939,7 @@ function saveTask(){
   const kakouSaki=resolveKakouSaki('fKakouSaki','fKakouSakiOther');
   const d={
     name,
-    modelName:document.getElementById('fModelName').value.trim(),
+    productName:document.getElementById('fProductName').value.trim(),
     koban:document.getElementById('fKoban').value.trim(),
     stampNo:document.getElementById('fStampNo').value.trim(),
     num:document.getElementById('fNum').value.trim(),
